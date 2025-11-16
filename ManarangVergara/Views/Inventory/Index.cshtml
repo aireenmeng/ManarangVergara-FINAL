@@ -1,0 +1,175 @@
+﻿@model IEnumerable<ManarangVergara.Models.InventoryListViewModel>
+@{
+    ViewData["Title"] = "Inventory";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Inventory Master List</h2>
+    <div>
+        @if ((bool?)ViewData["ShowArchived"] == true)
+        {
+            <a asp-action="Index" asp-route-showArchived="false" class="btn btn-outline-secondary me-2">
+                <i class="fa-solid fa-eye-slash me-1"></i>Hide Archived
+            </a>
+        }
+        else
+        {
+            <a asp-action="Index" asp-route-showArchived="true" class="btn btn-outline-secondary me-2">
+                <i class="fa-solid fa-box-archive me-1"></i>Show Archived
+            </a>
+        }
+
+        @if (User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Manager"))
+        {
+            <a asp-action="Create" class="btn btn-primary">
+                <i class="fa-solid fa-plus me-2"></i>Add New Product
+            </a>
+        }
+    </div>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-check-circle me-2"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form asp-action="Index" method="get" class="row g-2 align-items-center">
+            <input type="hidden" name="sortOrder" value="@ViewData["CurrentSort"]" />
+            <input type="hidden" name="showArchived" value="@ViewData["ShowArchived"]" />
+
+            <div class="col-auto flex-grow-1">
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="fa-solid fa-magnifying-glass"></i></span>
+                    <input type="text" name="searchString" class="form-control" placeholder="Search products..." value="@ViewData["CurrentFilter"]" />
+                </div>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-outline-primary">Search</button>
+            </div>
+            <div class="col-auto">
+                <a asp-action="Index" class="btn btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["NameSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                            Product Name <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["CatSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                            Category <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
+                    <th>Manufacturer</th>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["StockSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                            Total Stock <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["PriceSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                            SRP (₱) <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["ExpirySortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                            Next Expiry <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    // Dim the row if it's archived so it's visually obvious
+                    <tr class="@(item.Status == "Archived" ? "table-secondary text-muted" : "")">
+                        <td class="fw-bold">@item.ProductName</td>
+                        <td><span class="badge bg-light text-dark border">@item.CategoryName</span></td>
+                        <td>@item.Manufacturer</td>
+                        <td class="fw-bold">@item.Quantity</td>
+                        <td class="text-success">₱@item.SellingPrice.ToString("N2")</td>
+                        <td>@(item.ExpiryDate == DateOnly.MaxValue ? "-" : item.ExpiryDate.ToString("MMM dd, yyyy"))</td>
+                        <td>
+                            @if (item.Status == "Active")
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                            else if (item.Status == "Low Stock")
+                            {
+
+                                <span class="badge bg-warning text-dark">Low Stock</span>
+                            }
+                            else if (item.Status == "Out of Stock")
+                            {
+
+                                <span class="badge bg-secondary">Out of Stock</span>
+                            }
+                            else if (item.Status == "Expired")
+                            {
+
+                                <span class="badge bg-danger">Expired</span>
+                            }
+                            else if (item.Status == "Archived")
+                            {
+
+                                <span class="badge bg-dark">Archived</span>
+                            }
+                        </td>
+                        <td>
+                            @if (item.Status != "Archived")
+                            {
+                                <a asp-action="Edit" asp-route-id="@item.ProductId" class="btn btn-sm btn-outline-secondary" title="Edit">
+                                    <i class="fa-solid fa-pen"></i>
+                                </a>
+                            }
+
+                            @if (User.IsInRole("Admin") || User.IsInRole("Owner"))
+                            {
+                                @if (item.Status == "Archived")
+                                {
+                                    <form asp-action="Unarchive" asp-route-id="@item.ProductId" method="post" style="display:inline;"
+                                          onsubmit="return confirm('Restore this product to the active list?');">
+                                        <button type="submit" class="btn btn-sm btn-success" title="Restore (Unarchive)">
+                                            <i class="fa-solid fa-trash-arrow-up"></i>
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <form asp-action="Delete" asp-route-id="@item.ProductId" method="post" style="display:inline;"
+                                          onsubmit="return confirm('Are you sure you want to archive this product?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Archive">
+                                            <i class="fa-solid fa-box-archive"></i>
+                                        </button>
+                                    </form>
+                                }
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

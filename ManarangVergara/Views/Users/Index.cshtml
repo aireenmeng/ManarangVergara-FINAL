@@ -1,0 +1,74 @@
+﻿@model IEnumerable<ManarangVergara.Models.Database.Employee>
+@{
+    ViewData["Title"] = "User Management";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>User Management</h2>
+    <a asp-action="Create" class="btn btn-primary"><i class="fa-solid fa-user-plus me-2"></i>New User</a>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-check-circle me-2"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["UserSortParm"]" class="text-dark text-decoration-none">
+                            Username <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["NameSortParm"]" class="text-dark text-decoration-none">
+                            Full Name <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["RoleSortParm"]" class="text-dark text-decoration-none">
+                            Role <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["ContactSortParm"]" class="text-dark text-decoration-none">
+                            Contact Info <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td class="fw-bold">@item.Username</td>
+                        <td>@item.EmployeeName</td>
+                        <td>
+                            @if (item.Position == "Admin" || item.Position == "Owner")
+                            {
+                                <span class="badge bg-danger">@item.Position</span>
+                            }
+                            else if (item.Position == "Manager")
+                            {
+
+                                <span class="badge bg-warning text-dark">@item.Position</span>
+                            }
+                            else
+                            {
+
+                                <span class="badge bg-info text-dark">@item.Position</span>
+                            }
+                        </td>
+                        <td>@item.ContactInfo</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,0 +1,91 @@
+﻿@model IEnumerable<ManarangVergara.Models.Database.Transaction>
+@{
+    Layout = null; /* No sidebar for the printable report */
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Daily Report - @(((DateTime)ViewData["ReportDate"]).ToString("yyyy-MM-dd"))</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <style>
+        body {
+            font-family: serif;
+            padding: 20px;
+        }
+
+        .report-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid black;
+            padding-bottom: 10px;
+        }
+        @@media print {
+            .no-print
+
+        {
+            display: none !important;
+        }
+
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="text-end mb-3 no-print">
+            <button onclick="window.print()" class="btn btn-primary">Save as PDF / Print</button>
+        </div>
+
+        <div class="report-header">
+            <h1>MedTory Pharmacy</h1>
+            <h3>Daily Business Report</h3>
+            <p>Date: <strong>@(((DateTime)ViewData["ReportDate"]).ToLongDateString())</strong></p>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-light fw-bold">Financial Summary</div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h5>Total Transactions</h5>
+                        <h2>@ViewData["TransactionCount"]</h2>
+                    </div>
+                    <div class="col-6">
+                        <h5>Total Revenue</h5>
+                        <h2 class="text-success">₱@(((decimal)ViewData["TotalSales"]).ToString("N2"))</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h5 class="mt-4">Transaction Log</h5>
+        <table class="table table-bordered table-sm">
+            <thead class="table-light">
+                <tr><th>Time</th><th>Cashier</th><th>Payment</th><th class="text-end">Amount</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var sale in Model)
+                {
+                    <tr>
+                        <td>@sale.SalesDate.ToString("hh:mm tt")</td>
+                        <td>@sale.Employee.EmployeeName</td>
+                        <td>@sale.PaymentMethod</td>
+                        <td class="text-end">₱@sale.TotalAmount.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <h5 class="mt-5 text-danger">Inventory Action Items (Low Stock)</h5>
+        <ul>
+            @foreach (var item in (IEnumerable<dynamic>)ViewData["LowStock"])
+            {
+                <li><strong>@item.Product.Name</strong> - Only @item.Quantity remaining!</li>
+            }
+        </ul>
+        <div class="text-center text-muted mt-5">
+            Generated on @DateTime.Now.ToString("MMM dd, yyyy hh:mm tt") by MedTory System
+        </div>
+    </div>
+</body>
+</html>

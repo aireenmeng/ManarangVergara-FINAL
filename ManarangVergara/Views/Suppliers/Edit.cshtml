@@ -1,0 +1,33 @@
+﻿@model ManarangVergara.Models.Database.Supplier
+@{
+    ViewData["Title"] = "Edit Supplier";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">Edit Supplier</h5>
+            </div>
+            <div class="card-body">
+                <form asp-action="Edit">
+                    <input type="hidden" asp-for="SupplierId" />
+                    <div class="mb-3">
+                        <label asp-for="Name" class="form-label">Supplier Name</label>
+                        <input asp-for="Name" class="form-control" required />
+                        <span asp-validation-for="Name" class="text-danger"></span>
+                    </div> 
+                    <div class="mb-3">
+                        <label asp-for="ContactInfo" class="form-label">Contact Info</label>
+                        <input asp-for="ContactInfo" class="form-control" required />
+                        <span asp-validation-for="ContactInfo" class="text-danger"></span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Update Supplier</button>
+                    </div>
+                </form>
+            </div> 
+        </div>
+    </div>
+</div>

@@ -1,0 +1,177 @@
+﻿@model ManarangVergara.Models.TransactionViewModel
+@{
+    ViewData["Title"] = "Point of Sale";
+}
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0 fw-bold text-primary"><i class="fa-solid fa-cash-register me-2"></i>New Transaction</h3>
+        <a asp-controller="Transactions" asp-action="Index" class="btn btn-outline-danger">
+            <i class="fa-solid fa-xmark me-2"></i>Cancel Transaction
+        </a>
+    </div>
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fa-solid fa-triangle-exclamation me-2"></i> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row g-3" style="height: calc(100vh - 180px);">
+        <div class="col-md-7 d-flex flex-column">
+            <div class="card shadow-sm flex-grow-1">
+                <div class="card-header bg-primary text-white py-3">
+                    <h5 class="mb-0"><i class="fa-solid fa-magnifying-glass me-2"></i>Find Products</h5>
+                </div>
+                <div class="card-body d-flex flex-column justify-content-center align-items-center p-4" style="background-color: #f8f9fa;">
+                    <form asp-action="AddToCart" method="post" class="w-75 p-4 bg-white shadow rounded">
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Select Product</label>
+                            <select name="selectedProductId" asp-items="@(ViewData["ProductList"] as SelectList)" class="form-select form-select-lg" required>
+                                <option value="">-- Type to search... --</option>
+                            </select>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Quantity</label>
+                                <input name="selectedQuantity" class="form-control form-control-lg text-center fw-bold" type="number" min="1" value="1" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Discount</label>
+                                <select name="selectedDiscount" class="form-select form-select-lg fw-bold text-danger">
+                                    <option value="0">None (0%)</option>
+                                    <option value="0.20">Senior/PWD (20%)</option>
+                                    <option value="0.05">Promo (5%)</option>
+                                    <option value="0.10">Employee (10%)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-success btn-lg fw-bold">
+                                <i class="fa-solid fa-cart-plus me-2"></i> ADD TO CART
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-5 d-flex flex-column">
+            <div class="card shadow-sm flex-grow-1 border-0">
+                <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fa-solid fa-cart-shopping me-2"></i>Current Cart</h5>
+                    <span class="badge bg-warning text-dark fs-6">@Model.Cart.Sum(x => x.Quantity) items</span>
+                </div>
+
+                <div class="card-body p-0 overflow-auto" style="max-height: 45vh;">
+                    <table class="table table-striped mb-0" style="font-size: 0.9rem;">
+                        <thead class="table-secondary sticky-top">
+                            <tr>
+                                <th>Product</th>
+                                <th class="text-center">Qty</th>
+                                <th class="text-end">Price</th>
+                                <th class="text-end">Disc.</th>
+                                <th class="text-end">Total</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.Cart)
+                            {
+                                <tr>
+                                    <td class="fw-bold align-middle text-truncate" style="max-width: 150px;">@item.ProductName</td>
+                                    <td class="text-center align-middle">@item.Quantity</td>
+                                    <td class="text-end align-middle">@item.Price.ToString("N2")</td>
+                                    <td class="text-end align-middle text-danger">
+                                        @if (item.DiscountRate > 0)
+                                        {
+                                            <small>-@item.DiscountAmount.ToString("N2")</small>
+                                        }
+                                        else
+                                        {
+
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td class="text-end fw-bold align-middle">@item.Total.ToString("N2")</td>
+                                    <td class="text-end align-middle">
+                                        <form asp-action="RemoveFromCart" asp-route-productId="@item.ProductId" method="post">
+                                            <button type="submit" class="btn btn-sm btn-link text-danger p-0"><i class="fa-solid fa-xmark"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card-footer bg-white p-3 border-top shadow-lg">
+                    <input type="hidden" id="grandTotalRaw" value="@Model.GrandTotal" />
+
+                    <div class="d-flex justify-content-between mb-2">
+                        <h4 class="fw-bold">Total Due:</h4>
+                        <h2 class="fw-bold text-primary">₱@Model.GrandTotal.ToString("N2")</h2>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-muted mb-1">Money Received (₱)</label>
+                            <input type="number" id="moneyReceived" class="form-control form-control-lg fw-bold text-end" placeholder="0.00" min="0" step="0.01" oninput="calculateChange()" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-muted mb-1">Change Due (₱)</label>
+                            <input type="text" id="changeDue" class="form-control form-control-lg fw-bold text-end bg-light" placeholder="0.00" readonly />
+                        </div>
+                    </div>
+
+                    <form asp-action="CompleteSale" method="post">
+                        <div class="input-group mb-2">
+                            <label class="input-group-text fw-bold" for="paymentMethod">Pay Via</label>
+                            <select asp-for="PaymentMethod" class="form-select fw-bold" id="paymentMethod">
+                                <option value="Cash">💵 Cash</option>
+                                <option value="Gcash">🔵 GCash</option>
+                                <option value="PayMaya">🟢 PayMaya</option>
+                            </select>
+                        </div>
+                        <div class="d-grid gap-2 d-flex">
+                            <button type="submit" asp-action="HoldTransaction" class="btn btn-warning fw-bold flex-grow-1 @(!Model.Cart.Any() ? "disabled" : "")">
+                                <i class="fa-solid fa-pause me-2"></i> HOLD
+                            </button>
+                            <button type="submit" class="btn btn-primary btn-lg fw-bold flex-grow-1 @(!Model.Cart.Any() ? "disabled" : "")">
+                                <i class="fa-solid fa-check me-2"></i> COMPLETE
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function calculateChange() {
+        // 1. Get the values
+        const total = parseFloat(document.getElementById('grandTotalRaw').value) || 0;
+        const received = parseFloat(document.getElementById('moneyReceived').value) || 0;
+
+        // 2. Calculate Change
+        const change = received - total;
+
+        // 3. Display it (Formatted nicely)
+        const changeInput = document.getElementById('changeDue');
+        if (change >= 0) {
+             changeInput.value = change.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+             changeInput.classList.remove('text-danger', 'is-invalid');
+             changeInput.classList.add('text-success', 'is-valid');
+        } else {
+             changeInput.value = "Insufficient";
+             changeInput.classList.remove('text-success', 'is-valid');
+             changeInput.classList.add('text-danger', 'is-invalid');
+        }
+    }
+</script>

@@ -1,0 +1,54 @@
+﻿/*
+    Custom styles for MedTory
+*/
+
+/* --- NEW: Professional Theme Tweaks --- */
+html, body {
+    /* This makes ALL text proportionally smaller (default is 1rem) */
+    font-size: 0.95rem;
+}
+
+/* Make cards and buttons sharper (less rounded) */
+.card, .btn, .form-control, .input-group-text, .form-select, .alert, .badge {
+    border-radius: 0.25rem; /* Default is 0.375rem */
+}
+
+/* Make headers a little less huge */
+h1, .h1 {
+    font-size: 2.0rem;
+}
+
+h2, .h2 {
+    font-size: 1.75rem;
+}
+
+h3, .h3 {
+    font-size: 1.5rem;
+}
+
+
+/* --- EXISTING: Sidebar Layout Styles --- */
+.sidebar {
+    background-color: #2c3e50;
+    color: white;
+    height: 100vh;
+    overflow-y: auto; /* Allow sidebar to scroll if it has too many links */
+}
+
+    .sidebar a.nav-link {
+        color: #bdc3c7;
+        padding: 15px 20px;
+        font-size: 1.0rem; /* Reset font size for nav links */
+    }
+
+        .sidebar a.nav-link:hover, .sidebar a.nav-link.active {
+            color: white;
+            background-color: #34495e;
+            border-left: 4px solid #3498db;
+        }
+
+.user-panel {
+    padding: 20px;
+    background-color: #1a252f;
+    border-bottom: 1px solid #34495e;
+}

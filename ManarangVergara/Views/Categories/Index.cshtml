@@ -1,0 +1,87 @@
+﻿@model IEnumerable<ManarangVergara.Models.CategoryListViewModel>
+@{
+    ViewData["Title"] = "Categories";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Product Categories</h2>
+    <a asp-action="Create" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i>Add New</a>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form asp-action="Index" method="get" class="row g-2 align-items-center">
+            <input type="hidden" name="sortOrder" value="@ViewData["CurrentSort"]" />
+            <div class="col-auto flex-grow-1">
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="fa-solid fa-magnifying-glass"></i></span>
+                    <input type="text" name="searchString" class="form-control" placeholder="Search categories..." value="@ViewData["CurrentFilter"]" />
+                </div>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-outline-primary">Search</button>
+            </div>
+            <div class="col-auto">
+                <a asp-action="Index" class="btn btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["NameSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                            Category Name <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["CountSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                            Product Count <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td class="fw-bold">@item.CategoryName</td>
+                        <td>
+                            @if (item.ProductCount > 0)
+                            {
+                                <span class="badge bg-info text-dark">@item.ProductCount products</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">No products yet</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <a asp-action="Edit" asp-route-id="@item.CategoryId" class="btn btn-sm btn-outline-secondary me-2">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </a>
+                            <form asp-action="Delete" asp-route-id="@item.CategoryId" method="post" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this category?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="fa-solid fa-trash"></i> Delete
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

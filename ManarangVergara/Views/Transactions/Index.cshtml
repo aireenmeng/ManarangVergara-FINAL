@@ -1,0 +1,131 @@
+﻿@model IEnumerable<ManarangVergara.Models.TransactionListViewModel>
+@{
+    ViewData["Title"] = "Sales History";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Sales Transaction History</h2>
+    <a asp-controller="Pos" asp-action="Index" class="btn btn-success btn-lg">
+        <i class="fa-solid fa-cash-register me-2"></i>New Transaction (POS)
+    </a>
+</div>
+
+<!-- ALERTS (for future use) -->
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-check-circle me-2"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<!-- SEARCH BAR -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form asp-action="Index" method="get" class="row g-2 align-items-center">
+            <input type="hidden" name="sortOrder" value="@ViewData["CurrentSort"]" />
+            <div class="col-auto flex-grow-1">
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="fa-solid fa-magnifying-glass"></i></span>
+                    <input type="text" name="searchString" class="form-control" placeholder="Search by Cashier or Payment Method..." value="@ViewData["CurrentFilter"]" />
+                </div>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-outline-primary">Search</button>
+            </div>
+            <div class="col-auto">
+                <a asp-action="Index" class="btn btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- TRANSACTIONS TABLE -->
+<div class="card shadow-sm">
+    <div class="card-body">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["DateSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                            Date & Time <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["CashierSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                            Cashier <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
+                    <th>Items</th>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["TotalSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                            Total <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
+                    <th>Payment</th>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["StatusSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                            Status <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>
+                            <span class="fw-bold">#@item.TransactionId</span>
+                            <br>
+                            <small class="text-muted">@item.Date.ToString("MMM dd, yyyy hh:mm tt")</small>
+                        </td>
+                        <td><span class="badge bg-info text-dark">@item.CashierName</span></td>
+                        <td><span class="badge bg-secondary rounded-pill">@item.ItemCount items</span></td>
+                        <td class="text-success fw-bold">₱@item.TotalAmount.ToString("N2")</td>
+                        <td>@item.PaymentMethod</td>
+                        <td>
+                            @if (item.Status == "Completed")
+                            {
+                                <span class="badge bg-success">Completed</span>
+                            }
+                            else if (item.Status == "Pending")
+                            {
+
+                                <span class="badge bg-warning text-dark">Pending</span>
+                            }
+                            else
+                            {
+
+                                <span class="badge bg-danger">@item.Status</span>
+                            }
+                        </td>
+                        <td>
+                            @if (item.Status == "Pending")
+                            {
+                                <form asp-controller="Pos" asp-action="ResumeTransaction" asp-route-id="@item.TransactionId" method="post" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-warning fw-bold" title="Resume this transaction">
+                                        <i class="fa-solid fa-play me-1"></i> Resume
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <a asp-action="Details" asp-route-id="@item.TransactionId" class="btn btn-sm btn-outline-primary" title="View Details">
+                                    <i class="fa-solid fa-eye"></i> View
+                                </a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,0 +1,124 @@
+﻿@model ManarangVergara.Models.DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold text-dark">Operational Overview</h2>
+    @if (User.IsInRole("Admin") || User.IsInRole("Owner"))
+    {
+        <a asp-controller="Reports" asp-action="DailyReport" target="_blank" class="btn btn-primary">
+            <i class="fa-solid fa-file-pdf me-2"></i>Generate Daily Report
+        </a>
+    }
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-success shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 opacity-75"><i class="fa-solid fa-peso-sign me-1"></i>Daily Sales</h6>
+                <h2 class="card-title fw-bold">₱@Model.DailyGrossProfit.ToString("N2")</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-primary shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 opacity-75"><i class="fa-solid fa-warehouse me-1"></i>Total Stock Value</h6>
+                <h2 class="card-title fw-bold">₱@Model.TotalStockValue.ToString("N2")</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-dark bg-warning shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 opacity-75"><i class="fa-solid fa-triangle-exclamation me-1"></i>Low Stock</h6>
+                <h2 class="card-title fw-bold">@Model.LowStockCount Products</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-danger shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 opacity-75"><i class="fa-solid fa-hourglass-end me-1"></i>Near Expiry</h6>
+                <h2 class="card-title fw-bold">@Model.NearExpiryCount Products</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-7 mb-4">
+        <div class="card shadow-sm h-100 border-danger">
+            <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fa-solid fa-bell me-2"></i>Proactive Alerts (Action Required)</h5>
+                <span class="badge bg-white text-danger">@Model.ProactiveAlerts.Count Items</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Product</th>
+                            <th>Stock</th>
+                            <th>Expiry</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var alert in Model.ProactiveAlerts)
+                        {
+                            <tr class="@(alert.Urgency == "Critical" ? "table-danger" : "table-warning")">
+                                <td class="fw-bold">@alert.ProductName</td>
+                                <td>@alert.Quantity</td>
+                                <td>
+                                    @alert.ExpiryDate.ToString("MMM dd, yyyy")
+                                    <br>
+                                    <small class="text-muted">(@alert.DaysLeft days left)</small>
+                                </td>
+                                <td><span class="badge bg-dark">@alert.AlertType</span></td>
+                            </tr>
+                        }
+                        @if (!Model.ProactiveAlerts.Any())
+                        {
+                            <tr><td colspan="4" class="text-center text-success p-3"><i class="fa-solid fa-check-circle me-2"></i>No immediate risks found!</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 text-primary"><i class="fa-solid fa-receipt me-2"></i>Recent Sales</h5>
+                <a href="#" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <ul class="list-group list-group-flush">
+                @foreach (var txn in Model.RecentTransactions)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="fw-bold">#@txn.TransactionId</span>
+                            <span class="badge rounded-pill bg-secondary ms-2" style="font-size: 0.8em;">
+                                <i class="fa-solid fa-basket-shopping me-1"></i>@txn.ItemCount items
+                            </span>
+                            <br>
+                            <small class="text-muted">@txn.Date.ToString("MMM dd, hh:mm tt")</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="text-success fw-bold">₱@txn.TotalAmount.ToString("N2")</span>
+                            <br>
+                            <span class="badge bg-light text-dark border">@txn.PaymentMethod</span>
+                        </div>
+                    </li>
+                }
+                @if (!Model.RecentTransactions.Any())
+                {
+                    <li class="list-group-item text-center text-muted p-4">No transactions today yet.</li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>

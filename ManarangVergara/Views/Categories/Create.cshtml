@@ -1,0 +1,27 @@
+﻿@model ManarangVergara.Models.Database.ProductCategory
+@{
+    ViewData["Title"] = "Add Category";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Add New Category</h5>
+            </div>
+            <div class="card-body">
+                <form asp-action="Create">
+                    <div class="mb-3">
+                        <label asp-for="CategoryName" class="form-label">Category Name</label>
+                        <input asp-for="CategoryName" class="form-control" autofocus required />
+                        <span asp-validation-for="CategoryName" class="text-danger"></span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-success">Save Category</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

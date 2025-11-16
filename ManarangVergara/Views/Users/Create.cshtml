@@ -1,0 +1,50 @@
+﻿@model ManarangVergara.Models.Database.Employee
+@{
+    ViewData["Title"] = "Create User";
+}
+
+<div class="row justify-content-center py-4">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Create New User Account</h5>
+            </div>
+            <div class="card-body">
+                <form asp-action="Create" autocomplete="off">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Full Name</label>
+                        <input asp-for="EmployeeName" class="form-control" required placeholder="e.g., Juan Dela Cruz" />
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Username</label>
+                            <input asp-for="Username" class="form-control" required autocomplete="new-password" />
+                            <span asp-validation-for="Username" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Role</label>
+                            <select asp-for="Position" class="form-select" required>
+                                <option value="">- Select Role -</option>
+                                <option value="Cashier">Cashier</option>
+                                <option value="Manager">Manager</option>
+                                <option value="Admin">Admin</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Initial Password</label>
+                        <input type="password" name="rawPassword" class="form-control" required autocomplete="new-password" />
+                        <span class="text-danger">@Html.ValidationMessage("RawPassword")</span>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Contact Info</label>
+                        <input asp-for="ContactInfo" class="form-control" required placeholder="Phone or Email" />
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success btn-lg">Create Account</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

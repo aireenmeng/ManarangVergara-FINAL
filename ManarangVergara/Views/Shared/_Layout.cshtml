@@ -1,0 +1,114 @@
+﻿<!DOCTYPE html>
+<html lang="en" style="overflow-y: hidden;">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - MedTory</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+    <link rel="stylesheet" href="~/css/custom.css" asp-append-version="true" />
+
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    @{
+        bool isLoggedIn = User.Identity?.IsAuthenticated ?? false;
+        string userRole = User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Role)?.Value ?? "Unknown";
+    }
+
+    <div class="container-fluid">
+        <div class="row flex-nowrap vh-100">
+
+            @if (isLoggedIn)
+            {
+                <div class="col-12 col-sm-3 col-xl-2 px-0 sidebar">
+                    <div class="d-flex flex-sm-column flex-row flex-grow-1 align-items-center align-items-sm-start px-3 pt-2 text-white min-vh-100">
+
+                        <a href="/" class="d-flex align-items-center pb-3 mb-md-0 me-md-auto text-white text-decoration-none">
+                            <span class="fs-4 d-none d-sm-inline fw-bold mt-3 ms-2">💊 MedTory</span>
+                        </a>
+
+                        <div class="user-panel w-100 mb-3 rounded d-none d-sm-block">
+                            <div class="d-flex align-items-center">
+                                <i class="fa-solid fa-user-tie fa-3x me-3 text-secondary"></i>
+                                <div>
+                                    <h6 class="m-0 fw-bold">@User.Identity?.Name</h6>
+                                    <span class="badge bg-info text-dark mt-1">@userRole</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <ul class="nav nav-pills flex-sm-column flex-row flex-nowrap flex-shrink-1 flex-sm-grow-0 flex-grow-1 mb-sm-auto mb-0 justify-content-center align-items-center align-items-sm-start w-100" id="menu">
+                            <li class="nav-item w-100">
+                                <a href="@Url.Action("Index", "Home")" class="nav-link px-sm-0 px-2">
+                                    <i class="fs-5 fa-solid fa-gauge ms-3 me-3"></i><span class="ms-1 d-none d-sm-inline">Dashboard</span>
+                                </a>
+                            </li>
+                            <li class="nav-item w-100">
+                                <a href="@Url.Action("Index", "Inventory")" class="nav-link px-sm-0 px-2">
+                                    <i class="fs-5 fa-solid fa-boxes-stacked ms-3 me-3"></i><span class="ms-1 d-none d-sm-inline">Inventory</span>
+                                </a>
+                            </li>
+                            <li class="nav-item w-100">
+                                <a href="@Url.Action("Index", "Transactions")" class="nav-link px-sm-0 px-2">
+                                    <i class="fs-5 fa-solid fa-cash-register ms-3 me-3"></i><span class="ms-1 d-none d-sm-inline">Transactions</span>
+                                </a>
+                            </li>
+                            @if (User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Manager"))
+                            {
+                                <li class="nav-item w-100">
+                                    <a href="@Url.Action("Index", "Categories")" class="nav-link px-sm-0 px-2">
+                                        <i class="fs-5 fa-solid fa-tags ms-3 me-3"></i><span class="ms-1 d-none d-sm-inline">Categories</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item w-100">
+                                    <a href="@Url.Action("Index", "Suppliers")" class="nav-link px-sm-0 px-2">
+                                        <i class="fs-5 fa-solid fa-truck ms-3 me-3"></i><span class="ms-1 d-none d-sm-inline">Suppliers</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item w-100">
+                                    <a href="@Url.Action("Index", "Users")" class="nav-link px-sm-0 px-2">
+                                        <i class="fs-5 fa-solid fa-users-gear ms-3 me-3"></i><span class="ms-1 d-none d-sm-inline">Users</span>
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+
+                        <div class="dropdown py-sm-4 mt-sm-auto ms-auto ms-sm-0 flex-shrink-1 w-100">
+                            <hr class="text-white d-none d-sm-block">
+                            <a href="@Url.Action("Logout", "Account")" class="btn btn-danger w-100 d-none d-sm-block">
+                                <i class="fa-solid fa-right-from-bracket me-2"></i> Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (!isLoggedIn)
+            {
+                <div class="col-12" style="background-color: #f8f9fa; min-height: 100vh;">
+                    <main role="main" class="px-4 d-flex align-items-center min-vh-100">
+                        <div class="w-100">
+                            @RenderBody()
+                        </div>
+                    </main>
+                </div>
+            }
+            else
+            {
+                <div class="col py-3 vh-100" style="background-color: #f8f9fa; overflow-y: auto;">
+                    <main role="main" class="px-4">
+                        @RenderBody()
+                    </main>
+                </div>
+            }
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
