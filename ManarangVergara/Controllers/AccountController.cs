@@ -20,7 +20,6 @@ namespace ManarangVergara.Controllers
         // GET: /Account/Login
         public IActionResult Login()
         {
-            // If already logged in, redirect to Home
             if (User.Identity!.IsAuthenticated)
             {
                 return RedirectToAction("Index", "Home");
@@ -34,9 +33,12 @@ namespace ManarangVergara.Controllers
         {
             if (!ModelState.IsValid) return View(model);
 
-            // 1. Find user by Username ONLY first
+            // NEW LINE (Add the IsActive check):
             var employee = await _context.Employees
-                .FirstOrDefaultAsync(e => e.Username == model.Username);
+                .FirstOrDefaultAsync(e => e.Username == model.Username && e.IsActive == true);
+
+            // If they are found but IsActive is false, this returns null, 
+            // and the existing "Invalid username or password" error will show. Perfect security.
 
             if (employee == null)
             {
@@ -44,18 +46,15 @@ namespace ManarangVergara.Controllers
                 return View(model);
             }
 
-            // 2. Verify Password
             bool isPasswordCorrect = false;
-            // A. Try BCrypt verification first (Standard secure way)
+            // 1. Try Secure Hash
             try { isPasswordCorrect = BCrypt.Net.BCrypt.Verify(model.Password, employee.Password); }
-            catch { /* Ignore invalid hash format errors if any */ }
+            catch { }
 
-            // B. FALLBACK: If BCrypt failed, check plain text (for your old dummy data)
-            // Once you have updated all users, you can REMOVE this fallback for max security.
+            // 2. Fallback: Plain text (auto-updates to hash)
             if (!isPasswordCorrect && employee.Password == model.Password)
             {
                 isPasswordCorrect = true;
-                // Optional: Auto-update them to secure hash now that we know who they are
                 employee.Password = BCrypt.Net.BCrypt.HashPassword(model.Password);
                 await _context.SaveChangesAsync();
             }
@@ -66,7 +65,6 @@ namespace ManarangVergara.Controllers
                 return View(model);
             }
 
-            // 2. Create User Claims (The info stored in their login cookie)
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.Name, employee.Username),
@@ -76,19 +74,43 @@ namespace ManarangVergara.Controllers
             };
 
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-
-            // 3. Sign In (Creates the cookie)
-            await HttpContext.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                new ClaimsPrincipal(claimsIdentity));
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity));
 
             return RedirectToAction("Index", "Home");
         }
 
-        // GET: /Account/Logout
         public async Task<IActionResult> Logout()
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return RedirectToAction("Login");
+        }
+
+        // --- NEW: Reset Password (Clicked from Email) ---
+        public IActionResult ResetPassword(string token)
+        {
+            var user = _context.Employees.FirstOrDefault(e => e.ResetToken == token && e.ResetTokenExpiry > DateTime.UtcNow);
+            if (user == null)
+            {
+                return Content("Error: This password reset link is invalid or has expired.");
+            }
+            ViewBag.Token = token;
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ResetPassword(string token, string newPassword)
+        {
+            var user = await _context.Employees.FirstOrDefaultAsync(e => e.ResetToken == token && e.ResetTokenExpiry > DateTime.UtcNow);
+            if (user == null) return RedirectToAction("Login");
+
+            user.Password = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            user.ResetToken = null;
+            user.ResetTokenExpiry = null;
+
+            _context.Update(user);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Password reset successfully. Please login.";
             return RedirectToAction("Login");
         }
     }

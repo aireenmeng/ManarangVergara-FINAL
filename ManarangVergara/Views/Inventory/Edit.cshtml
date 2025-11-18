@@ -22,6 +22,30 @@
                         </div>
 
                         <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label asp-for="Quantity" class="form-label fw-bold">Total Stock</label>
+                                <input asp-for="Quantity" class="form-control bg-light" readonly />
+                                <small class="text-muted" style="font-size: 0.75rem;">Use "Adjust Stock" to change.</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="CostPrice" class="form-label fw-bold">Cost Price</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">₱</span>
+                                    <input asp-for="CostPrice" class="form-control" type="number" step="0.01" />
+                                </div>
+                                <span asp-validation-for="CostPrice" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="SellingPrice" class="form-label fw-bold">SRP</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">₱</span>
+                                    <input asp-for="SellingPrice" class="form-control" type="number" step="0.01" />
+                                </div>
+                                <span asp-validation-for="SellingPrice" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
                             <div class="col-md-6">
                                 <label asp-for="CategoryId" class="form-label fw-bold">Category</label>
                                 <select asp-for="CategoryId" asp-items="Model.CategoryList" class="form-select"></select>

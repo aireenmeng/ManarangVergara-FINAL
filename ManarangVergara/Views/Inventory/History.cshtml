@@ -1,0 +1,37 @@
+﻿@model IEnumerable<ManarangVergara.Models.Database.ItemLog>
+@{
+    ViewData["Title"] = "Product History";
+}
+
+<div class="container py-4">
+    <h3>History for: <span class="text-primary">@ViewData["ProductName"]</span></h3>
+    <a asp-action="Index" class="btn btn-outline-secondary mb-3">Back to List</a>
+
+    <div class="card shadow-sm">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Action</th>
+                    <th>Qty</th>
+                    <th>User</th>
+                    <th>Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var log in Model)
+                {
+                    <tr>
+                        <td>@log.LoggedAt.ToString("MMM dd, yyyy hh:mm tt")</td>
+                        <td>
+                            <span class="badge @(log.Action == "Added" ? "bg-success" : "bg-danger")">@log.Action</span>
+                        </td>
+                        <td class="fw-bold">@log.Quantity</td>
+                        <td>@log.Employee.EmployeeName</td>
+                        <td>@log.LogReason</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

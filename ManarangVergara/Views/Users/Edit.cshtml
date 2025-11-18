@@ -1,48 +1,54 @@
 ﻿@model ManarangVergara.Models.Database.Employee
 @{
-    ViewData["Title"] = "Create User";
+    ViewData["Title"] = "Edit User";
 }
 
 <div class="row justify-content-center py-4">
     <div class="col-md-6">
         <div class="card shadow">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Create New User Account</h5>
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">Edit User Details</h5>
             </div>
             <div class="card-body">
-                <form asp-action="Create" autocomplete="off">
+                <form asp-action="Edit">
+                    <input type="hidden" asp-for="EmployeeId" />
+
                     <div class="mb-3">
                         <label class="form-label fw-bold">Full Name</label>
-                        <input asp-for="EmployeeName" class="form-control" required placeholder="e.g., Juan Dela Cruz" />
+                        <input asp-for="EmployeeName" class="form-control" required />
+                        <span asp-validation-for="EmployeeName" class="text-danger"></span>
                     </div>
+
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Username</label>
-                            <input asp-for="Username" class="form-control" required autocomplete="new-password" />
+                            <input asp-for="Username" class="form-control" required />
                             <span asp-validation-for="Username" class="text-danger"></span>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Role</label>
                             <select asp-for="Position" class="form-select" required>
-                                <option value="">- Select Role -</option>
                                 <option value="Cashier">Cashier</option>
                                 <option value="Manager">Manager</option>
                                 <option value="Admin">Admin</option>
                             </select>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Initial Password</label>
-                        <input type="password" name="rawPassword" class="form-control" required autocomplete="new-password" />
-                        <span class="text-danger">@Html.ValidationMessage("RawPassword")</span>
-                    </div>
+
                     <div class="mb-4">
                         <label asp-for="ContactInfo" class="form-label fw-bold">Email Address</label>
-                        <input asp-for="ContactInfo" class="form-control" type="email" required placeholder="name@gmail.com" />
+                        <input asp-for="ContactInfo" class="form-control" type="email" required />
                         <span asp-validation-for="ContactInfo" class="text-danger"></span>
                     </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-success btn-lg">Create Account</button>
+
+                    <div class="alert alert-info small">
+                        <i class="fa-solid fa-circle-info me-2"></i>
+                        To change the password, use the <strong>Reset Pass</strong> button on the list page.
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
                     </div>
                 </form>
             </div>

@@ -1,5 +1,5 @@
-﻿using ManarangVergara.Models;
-using ManarangVergara.Models.Database;
+﻿using ManarangVergara.Models.Database;
+using ManarangVergara.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;

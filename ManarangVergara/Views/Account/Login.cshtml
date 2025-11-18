@@ -11,6 +11,10 @@
                 <h3 class="card-title mb-0">MedTory Login</h3>
             </div>
             <div class="card-body">
+                @if (TempData["SuccessMessage"] != null)
+                {
+                    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+                }
                 <form asp-action="Login" method="post">
                     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
@@ -26,8 +30,14 @@
                         <span asp-validation-for="Password" class="text-danger"></span>
                     </div>
 
-                    <div class="d-grid">
+                    <div class="d-grid mb-3">
                         <button type="submit" class="btn btn-primary btn-lg">Sign In</button>
+                    </div>
+
+                    <div class="text-center">
+                        <a href="#" onclick="alert('Please contact your Manager or Admin to trigger a password reset email for you.'); return false;" class="text-decoration-none">
+                            Forgot Password?
+                        </a>
                     </div>
                 </form>
             </div>

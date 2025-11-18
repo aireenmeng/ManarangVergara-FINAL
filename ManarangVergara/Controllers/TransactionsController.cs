@@ -2,8 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ManarangVergara.Models;
-using ManarangVergara.Models.Database;
 using System.Security.Claims;
+using ManarangVergara.Models.Database;
 
 namespace ManarangVergara.Controllers
 {
