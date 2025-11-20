@@ -3,15 +3,24 @@
     // The Main container for the Dashboard View
     public class DashboardViewModel
     {
-        // KPI Tiles
+        // --- KPI Tiles ---
         public decimal DailyGrossProfit { get; set; }
         public decimal TotalStockValue { get; set; }
         public int LowStockCount { get; set; }
         public int NearExpiryCount { get; set; }
 
-        // The two required lists
+        // --- Lists ---
         public List<ProactiveAlertVM> ProactiveAlerts { get; set; } = new();
         public List<TransactionPreviewVM> RecentTransactions { get; set; } = new();
+
+        // --- NEW: CHART DATA ---
+        // Bar Chart: Sales for the last 7 days
+        public string[] BarChartLabels { get; set; } = Array.Empty<string>();
+        public decimal[] BarChartData { get; set; } = Array.Empty<decimal>();
+
+        // Pie Chart: Top 5 Categories by Sales
+        public string[] PieChartLabels { get; set; } = Array.Empty<string>();
+        public int[] PieChartData { get; set; } = Array.Empty<int>();
     }
 
     // Innovation: Dedicated VM for the alerts with specific status flags

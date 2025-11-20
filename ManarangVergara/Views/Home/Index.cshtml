@@ -1,19 +1,28 @@
 ﻿@model ManarangVergara.Models.DashboardViewModel
+@using System.Text.Json
 @{
     ViewData["Title"] = "Dashboard";
 }
 
+<!-- --- HEADER SECTION --- -->
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="fw-bold text-dark">Operational Overview</h2>
     @if (User.IsInRole("Admin") || User.IsInRole("Owner"))
     {
-        <a asp-controller="Reports" asp-action="DailyReport" target="_blank" class="btn btn-primary">
+        <a asp-controller="Reports"
+           asp-action="Index"
+           asp-route-startDate="@DateTime.Today.ToString("yyyy-MM-dd")"
+           asp-route-endDate="@DateTime.Today.ToString("yyyy-MM-dd")"
+           target="_blank"
+           class="btn btn-primary">
             <i class="fa-solid fa-file-pdf me-2"></i>Generate Daily Report
         </a>
     }
 </div>
 
+<!-- --- KPI CARDS ROW --- -->
 <div class="row mb-4">
+    <!-- Daily Sales -->
     <div class="col-md-3">
         <div class="card text-white bg-success shadow-sm h-100">
             <div class="card-body">
@@ -22,6 +31,7 @@
             </div>
         </div>
     </div>
+    <!-- Total Stock Value -->
     <div class="col-md-3">
         <div class="card text-white bg-primary shadow-sm h-100">
             <div class="card-body">
@@ -30,6 +40,7 @@
             </div>
         </div>
     </div>
+    <!-- Low Stock -->
     <div class="col-md-3">
         <div class="card text-dark bg-warning shadow-sm h-100">
             <div class="card-body">
@@ -38,6 +49,7 @@
             </div>
         </div>
     </div>
+    <!-- Near Expiry -->
     <div class="col-md-3">
         <div class="card text-white bg-danger shadow-sm h-100">
             <div class="card-body">
@@ -48,7 +60,42 @@
     </div>
 </div>
 
+<!-- --- NEW: CHARTS ROW (Visualizations) --- -->
+<div class="row mb-4">
+    <!-- Bar Chart: Sales Last 7 Days -->
+    <div class="col-lg-8 mb-4 mb-lg-0">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h6 class="m-0 fw-bold text-primary"><i class="fa-solid fa-chart-bar me-2"></i>Sales Overview (Last 7 Days)</h6>
+            </div>
+            <div class="card-body">
+                <!-- Canvas for Chart.js -->
+                <div style="height: 300px;">
+                    <canvas id="myBarChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pie Chart: Top Categories -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h6 class="m-0 fw-bold text-primary"><i class="fa-solid fa-chart-pie me-2"></i>Top Categories</h6>
+            </div>
+            <div class="card-body d-flex justify-content-center align-items-center">
+                <!-- Canvas for Chart.js -->
+                <div style="height: 250px; width: 100%;">
+                    <canvas id="myPieChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- --- ALERTS & TRANSACTIONS ROW --- -->
 <div class="row">
+    <!-- Proactive Alerts Table -->
     <div class="col-lg-7 mb-4">
         <div class="card shadow-sm h-100 border-danger">
             <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
@@ -89,10 +136,12 @@
         </div>
     </div>
 
+    <!-- Recent Sales List -->
     <div class="col-lg-5 mb-4">
         <div class="card shadow-sm h-100">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 text-primary"><i class="fa-solid fa-receipt me-2"></i>Recent Sales</h5>
+                <!-- Link to View All Transactions -->
                 <a asp-controller="Transactions" asp-action="Index" class="btn btn-sm btn-outline-primary">View All</a>
             </div>
             <ul class="list-group list-group-flush">
@@ -122,3 +171,76 @@
         </div>
     </div>
 </div>
+
+<!-- --- SCRIPTS SECTION (Charts) --- -->
+@section Scripts {
+    <!-- 1. Load Chart.js Library from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        // 2. Get Data directly from the C# Model (Serialized to JSON)
+        // This is the "No-NuGet" way, exactly like Laravel's json_encode()
+        var barLabels = @Html.Raw(JsonSerializer.Serialize(Model.BarChartLabels));
+        var barData = @Html.Raw(JsonSerializer.Serialize(Model.BarChartData));
+
+        var pieLabels = @Html.Raw(JsonSerializer.Serialize(Model.PieChartLabels));
+        var pieData = @Html.Raw(JsonSerializer.Serialize(Model.PieChartData));
+
+        // 3. Render Bar Chart (Sales Last 7 Days)
+        var ctxBar = document.getElementById("myBarChart").getContext('2d');
+        var myBarChart = new Chart(ctxBar, {
+            type: 'bar',
+            data: {
+                labels: barLabels,
+                datasets: [{
+                    label: "Revenue (₱)",
+                    backgroundColor: "#4e73df",
+                    hoverBackgroundColor: "#2e59d9",
+                    borderColor: "#4e73df",
+                    data: barData,
+                    barPercentage: 0.6
+                }],
+            },
+            options: {
+                maintainAspectRatio: false,
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) { return '₱' + value; }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // 4. Render Pie Chart (Top Categories)
+        var ctxPie = document.getElementById("myPieChart").getContext('2d');
+        var myPieChart = new Chart(ctxPie, {
+            type: 'doughnut',
+            data: {
+                labels: pieLabels,
+                datasets: [{
+                    data: pieData,
+                    backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796'],
+                    hoverBorderColor: "rgba(234, 236, 244, 1)",
+                }],
+            },
+            options: {
+                maintainAspectRatio: false,
+                responsive: true,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12 }
+                    }
+                }
+            },
+        });
+    </script>
+}

@@ -3,10 +3,10 @@ using ManarangVergara.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ManarangVergara.Helpers;
 
 namespace ManarangVergara.Controllers
 {
-    // SECURE: Only Admin/Owner/Manager can access suppliers
     [Authorize(Roles = "Admin,Owner,Manager")]
     public class SuppliersController : Controller
     {
@@ -17,59 +17,69 @@ namespace ManarangVergara.Controllers
             _context = context;
         }
 
-        // GET: Suppliers
-        public async Task<IActionResult> Index(string sortOrder, string searchString)
+        public async Task<IActionResult> Index(string sortOrder, string searchString, bool showArchived = false, int? pageNumber = 1)
         {
-            // 1. Set up Sorting Parameters
             ViewData["NameSortParm"] = String.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
             ViewData["ContactSortParm"] = sortOrder == "Contact" ? "contact_desc" : "Contact";
             ViewData["CountSortParm"] = sortOrder == "Count" ? "count_desc" : "Count";
             ViewData["CurrentFilter"] = searchString;
-            ViewData["CurrentSort"] = sortOrder; // Keep track of current sort for pagination/search links
+            ViewData["CurrentSort"] = sortOrder; // Save sort state
+            ViewData["ShowArchived"] = showArchived;
 
-            // 2. Start Query & Project to ViewModel
-            var suppliers = _context.Suppliers
+            var query = _context.Suppliers.AsQueryable();
+
+            // 1. Soft Delete Logic
+            if (!showArchived)
+            {
+                query = query.Where(s => s.IsActive == true);
+            }
+
+            // 2. Search
+            if (!string.IsNullOrEmpty(searchString))
+            {
+                query = query.Where(s => s.Name.Contains(searchString) || s.ContactInfo.Contains(searchString));
+            }
+
+            // 3. Sort
+            query = sortOrder switch
+            {
+                "name_desc" => query.OrderByDescending(s => s.Name),
+                "" => query.OrderBy(s => s.Name),
+                "Contact" => query.OrderBy(s => s.ContactInfo),
+                "contact_desc" => query.OrderByDescending(s => s.ContactInfo),
+                "Count" => query.OrderBy(s => s.Products.Count),
+                "count_desc" => query.OrderByDescending(s => s.Products.Count),
+                _ => query.OrderByDescending(s => s.LastUpdated)
+            };
+
+            var data = await query
                 .Select(s => new SupplierListViewModel
                 {
                     SupplierId = s.SupplierId,
                     Name = s.Name,
                     ContactInfo = s.ContactInfo,
-                    ProductCount = s.Products.Count() // Counts linked products efficiently
-                });
+                    ProductCount = s.Products.Count()
+                })
+                .ToListAsync();
 
-            // 3. Apply Search
-            if (!string.IsNullOrEmpty(searchString))
-            {
-                suppliers = suppliers.Where(s => s.Name.Contains(searchString) || s.ContactInfo.Contains(searchString));
-            }
-
-            // 4. Apply Sort
-            suppliers = sortOrder switch
-            {
-                "name_desc" => suppliers.OrderByDescending(s => s.Name),
-                "Contact" => suppliers.OrderBy(s => s.ContactInfo),
-                "contact_desc" => suppliers.OrderByDescending(s => s.ContactInfo),
-                "Count" => suppliers.OrderBy(s => s.ProductCount),
-                "count_desc" => suppliers.OrderByDescending(s => s.ProductCount),
-                _ => suppliers.OrderBy(s => s.Name), // Default
-            };
-
-            return View(await suppliers.ToListAsync());
+            // PAGINATION: 10 Items
+            int pageSize = 10;
+            return View(PaginatedList<SupplierListViewModel>.Create(data.AsQueryable(), pageNumber ?? 1, pageSize));
         }
 
-        // GET: Suppliers/Create
         public IActionResult Create()
         {
             return View();
         }
 
-        // POST: Suppliers/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Supplier supplier)
         {
             if (ModelState.IsValid)
             {
+                supplier.IsActive = true;
+                supplier.LastUpdated = DateTime.Now;
                 _context.Add(supplier);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
@@ -77,7 +87,6 @@ namespace ManarangVergara.Controllers
             return View(supplier);
         }
 
-        // GET: Suppliers/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null) return NotFound();
@@ -86,7 +95,6 @@ namespace ManarangVergara.Controllers
             return View(supplier);
         }
 
-        // POST: Suppliers/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, Supplier supplier)
@@ -95,6 +103,11 @@ namespace ManarangVergara.Controllers
 
             if (ModelState.IsValid)
             {
+                var existing = await _context.Suppliers.AsNoTracking().FirstOrDefaultAsync(s => s.SupplierId == id);
+                if (existing != null) supplier.IsActive = existing.IsActive;
+
+                supplier.LastUpdated = DateTime.Now;
+
                 _context.Update(supplier);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
@@ -102,7 +115,7 @@ namespace ManarangVergara.Controllers
             return View(supplier);
         }
 
-        // POST: Suppliers/Delete/5 (With Error Handling)
+        // Soft Delete
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
@@ -110,16 +123,28 @@ namespace ManarangVergara.Controllers
             var supplier = await _context.Suppliers.FindAsync(id);
             if (supplier != null)
             {
-                try
-                {
-                    _context.Suppliers.Remove(supplier);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateException)
-                {
-                    TempData["ErrorMessage"] = "Cannot delete this supplier because they are linked to existing products.";
-                    return RedirectToAction(nameof(Index));
-                }
+                supplier.IsActive = false;
+                supplier.LastUpdated = DateTime.Now;
+                _context.Update(supplier);
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Supplier archived.";
+            }
+            return RedirectToAction(nameof(Index));
+        }
+
+        // Restore
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Restore(int id)
+        {
+            var supplier = await _context.Suppliers.FindAsync(id);
+            if (supplier != null)
+            {
+                supplier.IsActive = true;
+                supplier.LastUpdated = DateTime.Now;
+                _context.Update(supplier);
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Supplier restored.";
             }
             return RedirectToAction(nameof(Index));
         }

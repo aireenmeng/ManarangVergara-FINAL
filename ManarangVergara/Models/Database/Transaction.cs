@@ -15,6 +15,8 @@ public partial class Transaction
 
     public string PaymentMethod { get; set; } = null!;
 
+    public string? ReferenceNo { get; set; }
+
     public string Status { get; set; } = null!;
 
     public virtual Employee Employee { get; set; } = null!;

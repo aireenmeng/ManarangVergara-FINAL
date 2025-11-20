@@ -1,24 +1,31 @@
 ﻿@model ManarangVergara.Models.Database.Employee
 @{
-    ViewData["Title"] = "Create User";
+    ViewData["Title"] = "Invite New User";
 }
 
 <div class="row justify-content-center py-4">
     <div class="col-md-6">
         <div class="card shadow">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Create New User Account</h5>
+                <h5 class="mb-0"><i class="fa-solid fa-envelope-open-text me-2"></i>Invite New User</h5>
             </div>
             <div class="card-body">
+                <div class="alert alert-info small">
+                    <i class="fa-solid fa-circle-info me-2"></i>
+                    The user will receive an email with a link to set their own password.
+                </div>
+
                 <form asp-action="Create" autocomplete="off">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Full Name</label>
                         <input asp-for="EmployeeName" class="form-control" required placeholder="e.g., Juan Dela Cruz" />
+                        <span asp-validation-for="EmployeeName" class="text-danger"></span>
                     </div>
+
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Username</label>
-                            <input asp-for="Username" class="form-control" required autocomplete="new-password" />
+                            <input asp-for="Username" class="form-control" required autocomplete="off" />
                             <span asp-validation-for="Username" class="text-danger"></span>
                         </div>
                         <div class="col-md-6">
@@ -27,22 +34,21 @@
                                 <option value="">- Select Role -</option>
                                 <option value="Cashier">Cashier</option>
                                 <option value="Manager">Manager</option>
-                                <option value="Admin">Admin</option>
+                                <!-- Admin option removed per request -->
                             </select>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Initial Password</label>
-                        <input type="password" name="rawPassword" class="form-control" required autocomplete="new-password" />
-                        <span class="text-danger">@Html.ValidationMessage("RawPassword")</span>
-                    </div>
+
                     <div class="mb-4">
                         <label asp-for="ContactInfo" class="form-label fw-bold">Email Address</label>
                         <input asp-for="ContactInfo" class="form-control" type="email" required placeholder="name@gmail.com" />
                         <span asp-validation-for="ContactInfo" class="text-danger"></span>
                     </div>
+
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-success btn-lg">Create Account</button>
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fa-solid fa-paper-plane me-2"></i> Send Invitation
+                        </button>
                     </div>
                 </form>
             </div>

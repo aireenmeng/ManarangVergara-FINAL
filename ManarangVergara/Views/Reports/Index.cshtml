@@ -1,0 +1,166 @@
+﻿@model ManarangVergara.Models.ReportViewModel
+@{
+    ViewData["Title"] = "Advanced Reports";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4 no-print">
+    <h2 class="fw-bold text-primary"><i class="fa-solid fa-chart-line me-2"></i>Sales Reports</h2>
+    <button onclick="window.print()" class="btn btn-dark">
+        <i class="fa-solid fa-print me-2"></i>Print / Save PDF
+    </button>
+</div>
+
+<!-- FILTER FORM (Hidden when printing) -->
+<div class="card shadow-sm mb-4 no-print">
+    <div class="card-header bg-light fw-bold">Filter Options</div>
+    <div class="card-body">
+        <form asp-action="Index" method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">Start Date</label>
+                <input type="date" name="startDate" class="form-control" value="@Model.StartDate?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">End Date</label>
+                <input type="date" name="endDate" class="form-control" value="@Model.EndDate?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-bold">Cashier</label>
+                <select name="cashierId" class="form-select">
+                    <option value="">All Cashiers</option>
+                    @foreach (var c in Model.CashierList)
+                    {
+                        <option value="@c.EmployeeId" selected="@(Model.CashierId == c.EmployeeId)">@c.EmployeeName</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-bold">Payment</label>
+                <select name="paymentMethod" class="form-select">
+                    <option value="">All Methods</option>
+                    <option value="Cash" selected="@(Model.PaymentMethod == "Cash")">Cash</option>
+                    <option value="Gcash" selected="@(Model.PaymentMethod == "Gcash")">GCash</option>
+                    <option value="PayMaya" selected="@(Model.PaymentMethod == "PayMaya")">PayMaya</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-filter me-1"></i> Generate</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- REPORT HEADER (Only visible on Print) -->
+<div class="print-only text-center mb-4">
+    <h1>MedTory Pharmacy</h1>
+    <h3>Sales Performance Report</h3>
+    <p class="mb-0">Period: @Model.StartDate?.ToShortDateString() - @Model.EndDate?.ToShortDateString()</p>
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card bg-primary text-white shadow-sm">
+            <div class="card-body text-center">
+                <h6>Total Revenue</h6>
+                <h2 class="fw-bold">₱@Model.TotalRevenue.ToString("N2")</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card bg-secondary text-white shadow-sm">
+            <div class="card-body text-center">
+                <h6>Transactions Count</h6>
+                <h2 class="fw-bold">@Model.TransactionCount</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- RESULTS TABLE -->
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <table class="table table-bordered table-striped mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Date</th>
+                    <th>Trans #</th>
+                    <th>Cashier</th>
+                    <th>Payment</th>
+                    <th>Ref #</th>
+                    <th class="text-end">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Transactions)
+                {
+                    <tr>
+                        <td>@item.SalesDate.ToString("MM/dd/yyyy hh:mm tt")</td>
+                        <td>#@item.SalesId</td>
+                        <td>@item.Employee?.EmployeeName</td>
+                        <td>@item.PaymentMethod</td>
+                        <td class="small text-muted">@(item.ReferenceNo ?? "-")</td>
+                        <td class="text-end fw-bold">₱@item.TotalAmount.ToString("N2")</td>
+                    </tr>
+                }
+                @if (!Model.Transactions.Any())
+                {
+                    <tr><td colspan="6" class="text-center py-3">No records found for this period.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- FOOTER (Signatures for Print) -->
+<div class="print-only mt-5">
+    <div class="row">
+        <div class="col-6">
+            <p>Generated By:</p>
+            <br>
+            <p class="fw-bold text-uppercase">@Model.GeneratedBy</p>
+            <p class="small text-muted">@Model.GeneratedAt.ToString("MMM dd, yyyy hh:mm tt")</p>
+        </div>
+        <div class="col-6 text-end">
+            <p>Checked / Approved By:</p>
+            <br>
+            <p>_____________________________</p>
+            <p class="small text-muted">Signature over Printed Name</p>
+        </div>
+    </div>
+</div>
+
+<!-- PRINT STYLES -->
+<style>
+    .print-only {
+        display: none;
+    }
+
+    @@media print {
+        /* Hide sidebar, filters, buttons */
+        .no-print, .sidebar, header, footer {
+            display: none !important;
+        }
+        /* Show print header/footer */
+        .print-only {
+            display: block !important;
+        }
+        /* Make content full width */
+        .container-fluid, .col-md-9, .col-lg-10 {
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            max-width: none !important;
+            flex: 0 0 100% !important;
+        }
+
+        .card {
+            border: 1px solid #ddd !important;
+            box-shadow: none !important;
+        }
+
+        body {
+            background-color: white !important;
+            font-size: 12pt;
+        }
+    }
+</style>

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using ManarangVergara.Models;
 using ManarangVergara.Models.Database;
+using ManarangVergara.Helpers; // <--- Add this namespace
 
 namespace ManarangVergara.Controllers
 {
@@ -17,7 +18,7 @@ namespace ManarangVergara.Controllers
             _context = context;
         }
 
-        public async Task<IActionResult> Index(string searchString, string sortOrder, bool showArchived = false)
+        public async Task<IActionResult> Index(string searchString, string sortOrder, bool showArchived = false, int? pageNumber = 1)
         {
             ViewData["CurrentFilter"] = searchString;
             ViewData["CurrentSort"] = sortOrder;
@@ -34,16 +35,32 @@ namespace ManarangVergara.Controllers
                 .Include(p => p.Inventories)
                 .AsQueryable();
 
+            // 1. Filter (Active/Archived)
             if (!showArchived) query = query.Where(p => p.IsActive == 1);
 
+            // 2. Search
             if (!string.IsNullOrEmpty(searchString))
             {
                 query = query.Where(p => p.Name.Contains(searchString) || p.Category.CategoryName.Contains(searchString));
             }
 
+            // 3. Sort Logic (Done BEFORE materializing the list to optimize SQL)
+            query = sortOrder switch
+            {
+                "name_desc" => query.OrderByDescending(p => p.Name),
+                "Category" => query.OrderBy(p => p.Category.CategoryName),
+                "cat_desc" => query.OrderByDescending(p => p.Category.CategoryName),
+                // Note: Stock sorting is complex in SQL, keeping default for now to avoid errors
+                _ => query.OrderBy(p => p.Name),
+            };
+
+            // 4. EXECUTE QUERY & MAP TO VIEWMODEL
+            // We fetch the raw data first, then map it. 
+            // (In complex apps, we map before fetching, but this is safer for your calculated "Status" fields)
+
             var rawData = await query.ToListAsync();
 
-            var inventoryList = rawData.Select(p =>
+            var mappedList = rawData.Select(p =>
             {
                 var totalQuantity = p.Inventories.Sum(i => i.Quantity);
                 var earliestExpiry = p.Inventories.Any() ? p.Inventories.Min(i => i.ExpiryDate) : DateOnly.MaxValue;
@@ -65,23 +82,17 @@ namespace ManarangVergara.Controllers
                     ExpiryDate = earliestExpiry,
                     Status = status
                 };
-            });
+            }).ToList();
 
-            inventoryList = sortOrder switch
-            {
-                "name_desc" => inventoryList.OrderByDescending(i => i.ProductName),
-                "Category" => inventoryList.OrderBy(i => i.CategoryName),
-                "cat_desc" => inventoryList.OrderByDescending(i => i.CategoryName),
-                "Stock" => inventoryList.OrderBy(i => i.Quantity),
-                "stock_desc" => inventoryList.OrderByDescending(i => i.Quantity),
-                "Price" => inventoryList.OrderBy(i => i.SellingPrice),
-                "price_desc" => inventoryList.OrderByDescending(i => i.SellingPrice),
-                "Expiry" => inventoryList.OrderBy(i => i.ExpiryDate),
-                "expiry_desc" => inventoryList.OrderByDescending(i => i.ExpiryDate),
-                _ => inventoryList.OrderBy(i => i.ProductName),
-            };
+            // Re-apply sorting for calculated fields (Stock/Price) if needed
+            if (sortOrder == "Stock") mappedList = mappedList.OrderBy(x => x.Quantity).ToList();
+            else if (sortOrder == "stock_desc") mappedList = mappedList.OrderByDescending(x => x.Quantity).ToList();
+            else if (sortOrder == "Price") mappedList = mappedList.OrderBy(x => x.SellingPrice).ToList();
+            else if (sortOrder == "price_desc") mappedList = mappedList.OrderByDescending(x => x.SellingPrice).ToList();
 
-            return View(inventoryList.ToList());
+            // 5. PAGINATE (15 items per page)
+            int pageSize = 10;
+            return View(PaginatedList<InventoryListViewModel>.Create(mappedList.AsQueryable(), pageNumber ?? 1, pageSize));
         }
 
         // --- NEW: ADJUST STOCK ACTION ---
@@ -300,7 +311,7 @@ namespace ManarangVergara.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin,Owner, Manager")]
+        [Authorize(Roles = "Admin,Owner,Manager")]
         public async Task<IActionResult> Unarchive(int id)
         {
             var product = await _context.Products.FindAsync(id);

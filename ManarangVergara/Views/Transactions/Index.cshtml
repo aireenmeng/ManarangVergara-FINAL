@@ -1,4 +1,5 @@
-﻿@model IEnumerable<ManarangVergara.Models.TransactionListViewModel>
+﻿@using ManarangVergara.Helpers
+@model PaginatedList<ManarangVergara.Models.TransactionListViewModel>
 @{
     ViewData["Title"] = "Sales History";
 }
@@ -49,7 +50,7 @@
 
 <!-- TRANSACTIONS TABLE -->
 <div class="card shadow-sm">
-    <div class="card-body">
+    <div class="card-body table-responsive">
         <table class="table table-hover align-middle">
             <thead class="table-light">
                 <tr>
@@ -127,5 +128,32 @@
                 }
             </tbody>
         </table>
+    </div>
+</div>
+
+@{
+    var prevDisabled = !Model.HasPreviousPage ? "disabled" : "";
+    var nextDisabled = !Model.HasNextPage ? "disabled" : "";
+}
+
+<div class="d-flex justify-content-between align-items-center mt-3">
+    <span class="text-muted small">
+        Showing Page @Model.PageIndex of @Model.TotalPages
+    </span>
+    <div>
+        <a asp-action="Index"
+           asp-route-sortOrder="@ViewData["CurrentSort"]"
+           asp-route-pageNumber="@(Model.PageIndex - 1)"
+           asp-route-searchString="@ViewData["CurrentFilter"]"
+           class="btn btn-outline-primary @prevDisabled">
+            <i class="fa-solid fa-chevron-left me-1"></i> Previous
+        </a>
+        <a asp-action="Index"
+           asp-route-sortOrder="@ViewData["CurrentSort"]"
+           asp-route-pageNumber="@(Model.PageIndex + 1)"
+           asp-route-searchString="@ViewData["CurrentFilter"]"
+           class="btn btn-outline-primary @nextDisabled">
+            Next <i class="fa-solid fa-chevron-right ms-1"></i>
+        </a>
     </div>
 </div>

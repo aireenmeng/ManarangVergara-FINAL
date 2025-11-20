@@ -1,4 +1,5 @@
-﻿@model IEnumerable<ManarangVergara.Models.SupplierListViewModel>
+﻿@using ManarangVergara.Helpers
+@model PaginatedList<ManarangVergara.Models.SupplierListViewModel>
 @{
     ViewData["Title"] = "Suppliers";
 }
@@ -89,5 +90,17 @@
                 }
             </tbody>
         </table>
+    </div>
+</div>
+
+@{
+    var prevDisabled = !Model.HasPreviousPage ? "disabled" : "";
+    var nextDisabled = !Model.HasNextPage ? "disabled" : "";
+}
+<div class="d-flex justify-content-between align-items-center mt-3">
+    <span class="text-muted small">Page @Model.PageIndex of @Model.TotalPages</span>
+    <div>
+        <a asp-action="Index" asp-route-sortOrder="@ViewData["CurrentSort"]" asp-route-pageNumber="@(Model.PageIndex - 1)" asp-route-searchString="@ViewData["CurrentFilter"]" class="btn btn-outline-primary @prevDisabled">Previous</a>
+        <a asp-action="Index" asp-route-sortOrder="@ViewData["CurrentSort"]" asp-route-pageNumber="@(Model.PageIndex + 1)" asp-route-searchString="@ViewData["CurrentFilter"]" class="btn btn-outline-primary @nextDisabled">Next</a>
     </div>
 </div>

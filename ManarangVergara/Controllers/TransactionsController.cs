@@ -1,9 +1,10 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using ManarangVergara.Helpers;
+using ManarangVergara.Models;
+using ManarangVergara.Models.Database;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using ManarangVergara.Models;
 using System.Security.Claims;
-using ManarangVergara.Models.Database;
 
 namespace ManarangVergara.Controllers
 {
@@ -18,12 +19,12 @@ namespace ManarangVergara.Controllers
         }
 
         // GET: Transactions History
-        // GET: Transactions History (With Search and Sort)
-        public async Task<IActionResult> Index(string searchString, string sortOrder)
+        public async Task<IActionResult> Index(string searchString, string sortOrder, int? pageNumber = 1)
         {
-            // --- Setup Sort Toggles ---
             ViewData["CurrentFilter"] = searchString;
             ViewData["CurrentSort"] = sortOrder;
+
+            // Sorting Parameters
             ViewData["DateSortParm"] = String.IsNullOrEmpty(sortOrder) ? "date_desc" : "";
             ViewData["CashierSortParm"] = sortOrder == "Cashier" ? "cashier_desc" : "Cashier";
             ViewData["StatusSortParm"] = sortOrder == "Status" ? "status_desc" : "Status";
@@ -34,7 +35,7 @@ namespace ManarangVergara.Controllers
                 .Include(t => t.Employee)
                 .AsQueryable();
 
-            // --- RBAC Filter (Cashiers see their own) ---
+            // Security: Cashiers only see their own sales
             if (User.IsInRole("Cashier"))
             {
                 var employeeIdClaim = User.FindFirst("EmployeeId");
@@ -44,14 +45,15 @@ namespace ManarangVergara.Controllers
                 }
             }
 
-            // --- Search Filter ---
+            // Search Logic
             if (!string.IsNullOrEmpty(searchString))
             {
-                // Search by Cashier Name or Payment Method
-                query = query.Where(t => t.Employee.EmployeeName.Contains(searchString) || t.PaymentMethod.Contains(searchString));
+                query = query.Where(t => t.Employee.EmployeeName.Contains(searchString)
+                                     || t.PaymentMethod.Contains(searchString)
+                                     || (t.ReferenceNo != null && t.ReferenceNo.Contains(searchString)));
             }
 
-            // --- Sorting ---
+            // Sort Logic
             query = sortOrder switch
             {
                 "date_desc" => query.OrderByDescending(t => t.SalesDate),
@@ -61,9 +63,10 @@ namespace ManarangVergara.Controllers
                 "status_desc" => query.OrderByDescending(t => t.Status),
                 "Total" => query.OrderBy(t => t.TotalAmount),
                 "total_desc" => query.OrderByDescending(t => t.TotalAmount),
-                _ => query.OrderBy(t => t.SalesDate), // Default: Newest first
+                _ => query.OrderByDescending(t => t.SalesDate),
             };
 
+            // Project to ViewModel
             var data = await query
                 .Select(t => new TransactionListViewModel
                 {
@@ -77,7 +80,9 @@ namespace ManarangVergara.Controllers
                 })
                 .ToListAsync();
 
-            return View(data);
+            // --- PAGINATION LOGIC ---
+            int pageSize = 10; // Set to 10 as requested
+            return View(PaginatedList<TransactionListViewModel>.Create(data.AsQueryable(), pageNumber ?? 1, pageSize));
         }
 
         // GET: Transactions/Details/5
@@ -85,7 +90,6 @@ namespace ManarangVergara.Controllers
         {
             if (id == null) return NotFound();
 
-            // Fetch EVERYTHING related to this sale: Employee, Items, and Product details for those items
             var transaction = await _context.Transactions
                 .Include(t => t.Employee)
                 .Include(t => t.SalesItems)
@@ -94,7 +98,6 @@ namespace ManarangVergara.Controllers
 
             if (transaction == null) return NotFound();
 
-            // Security Check: Cashiers can only view THEIR OWN details
             if (User.IsInRole("Cashier"))
             {
                 var employeeIdClaim = User.FindFirst("EmployeeId");
@@ -107,19 +110,11 @@ namespace ManarangVergara.Controllers
             return View(transaction);
         }
 
-        // GET: Transactions/Create (POS Placeholder)
-        public IActionResult Create()
-        {
-            return Content("POS Screen coming next!");
-        }
-
-        // =========================================
-        // POST: Void Transaction (Refund & Restock)
-        // =========================================
+        // POST: Void Transaction
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin,Owner,Manager")] // CRITICAL: Only bosses can void!
-        public async Task<IActionResult> Void(int id)
+        [Authorize(Roles = "Admin,Owner,Manager")]
+        public async Task<IActionResult> Void(int id, string reason) // Added reason parameter
         {
             using var dbTransaction = await _context.Database.BeginTransactionAsync();
             try
@@ -138,7 +133,6 @@ namespace ManarangVergara.Controllers
                 // 1. RESTOCK INVENTORY
                 foreach (var item in sale.SalesItems)
                 {
-                    // Find the best batch to return items to (e.g., the one expiring last)
                     var targetBatch = await _context.Inventories
                         .Where(i => i.ProductId == item.ProductId)
                         .OrderByDescending(i => i.ExpiryDate)
@@ -149,18 +143,27 @@ namespace ManarangVergara.Controllers
                         targetBatch.Quantity += item.QuantitySold;
                         _context.Inventories.Update(targetBatch);
                     }
-                    // Note: If NO batch exists (all expired/deleted), you might need to create a new one.
-                    // For simplicity, we assume at least one batch always exists if a product is active.
                 }
 
                 // 2. Update Transaction Status
                 sale.Status = "Refunded";
                 _context.Update(sale);
 
+                // 3. Log the Void
+                var managerId = int.Parse(User.FindFirst("EmployeeId").Value);
+                var voidLog = new ManarangVergara.Models.Database.Void
+                {
+                    SalesId = id,
+                    EmployeeId = managerId, // The manager who voided it
+                    VoidedAt = DateTime.Now,
+                    VoidReason = reason
+                };
+                _context.Voids.Add(voidLog);
+
                 await _context.SaveChangesAsync();
                 await dbTransaction.CommitAsync();
 
-                TempData["SuccessMessage"] = $"Transaction #{id} voided and stock returned to inventory.";
+                TempData["SuccessMessage"] = $"Transaction #{id} voided successfully.";
                 return RedirectToAction(nameof(Details), new { id });
             }
             catch (Exception ex)
@@ -169,6 +172,29 @@ namespace ManarangVergara.Controllers
                 TempData["ErrorMessage"] = "Void Failed: " + ex.Message;
                 return RedirectToAction(nameof(Details), new { id });
             }
+        }
+
+        // GET: Void History
+        [Authorize(Roles = "Admin,Owner,Manager")]
+        public async Task<IActionResult> VoidHistory()
+        {
+            var voids = await _context.Voids
+                .Include(v => v.Sales)
+                .Include(v => v.Sales.Employee) // Original Cashier
+                .Include(v => v.Employee)       // Manager who voided
+                .OrderByDescending(v => v.VoidedAt)
+                .Select(v => new VoidHistoryViewModel
+                {
+                    TransactionId = v.SalesId,
+                    VoidDate = v.VoidedAt,
+                    CashierName = v.Sales.Employee.EmployeeName,
+                    ManagerName = v.Employee.EmployeeName,
+                    TotalAmount = v.Sales.TotalAmount,
+                    Reason = v.VoidReason
+                })
+                .ToListAsync();
+
+            return View(voids);
         }
     }
 }
