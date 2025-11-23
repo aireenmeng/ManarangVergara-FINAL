@@ -1,0 +1,84 @@
+﻿@using ManarangVergara.Helpers
+@model PaginatedList<ManarangVergara.Models.CategoryListViewModel>
+@{
+    ViewData["Title"] = "Archived Categories";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="text-muted"><i class="fa-solid fa-tags me-2"></i>Archived Categories</h2>
+    <a asp-action="Index" class="btn btn-outline-primary">
+        <i class="fa-solid fa-arrow-left me-2"></i>Back to Active List
+    </a>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form asp-action="Archives" method="get" class="row g-2 align-items-center">
+            <div class="col-auto flex-grow-1">
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="fa-solid fa-magnifying-glass"></i></span>
+                    <input type="text" name="searchString" class="form-control" placeholder="Search archives..." value="@ViewData["CurrentFilter"]" />
+                </div>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-outline-secondary">Search</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body table-responsive">
+        <table class="table table-hover align-middle text-muted">
+            <thead class="table-light">
+                <tr>
+                    <th>Category Name</th>
+                    <th>Product Count</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td class="fw-bold">@item.CategoryName</td>
+                        <td>
+                            @if (item.ProductCount > 0)
+                            {
+                                <span class="badge bg-secondary">@item.ProductCount linked</span>
+                            }
+                            else
+                            {
+
+                                <small>0</small>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <form asp-action="Restore" asp-route-id="@item.CategoryId" method="post" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-success" title="Restore">
+                                    <i class="fa-solid fa-trash-arrow-up me-1"></i> Restore
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Any())
+                {
+                    <tr><td colspan="3" class="text-center py-4">No archived categories found.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@{
+    var prevDisabled = !Model.HasPreviousPage ? "disabled" : "";
+    var nextDisabled = !Model.HasNextPage ? "disabled" : "";
+}
+<div class="d-flex justify-content-between align-items-center mt-3">
+    <span class="text-muted small">Page @Model.PageIndex of @Model.TotalPages</span>
+    <div>
+        <a asp-action="Archives" asp-route-pageNumber="@(Model.PageIndex - 1)" asp-route-searchString="@ViewData["CurrentFilter"]" class="btn btn-outline-secondary @prevDisabled">Previous</a>
+        <a asp-action="Archives" asp-route-pageNumber="@(Model.PageIndex + 1)" asp-route-searchString="@ViewData["CurrentFilter"]" class="btn btn-outline-secondary @nextDisabled">Next</a>
+    </div>
+</div>

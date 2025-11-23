@@ -56,6 +56,49 @@ namespace ManarangVergara.Controllers
             return View(PaginatedList<CategoryListViewModel>.Create(data.AsQueryable(), pageNumber ?? 1, 10));
         }
 
+        // 1. NEW: Archives Page (Paginated & Sorted)
+        public async Task<IActionResult> Archives(string sortOrder, string searchString, int? pageNumber = 1)
+        {
+            ViewData["CurrentFilter"] = searchString;
+            ViewData["CurrentSort"] = sortOrder;
+
+            ViewData["NameSortParm"] = String.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
+            ViewData["CountSortParm"] = sortOrder == "Count" ? "count_desc" : "Count";
+
+            // QUERY: Fetch only INACTIVE (Archived) Categories
+            var query = _context.ProductCategories
+                .Where(c => c.IsActive == false)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(searchString))
+            {
+                query = query.Where(c => c.CategoryName.Contains(searchString));
+            }
+
+            // Sort Logic
+            query = sortOrder switch
+            {
+                "name_desc" => query.OrderByDescending(c => c.CategoryName),
+                "" => query.OrderBy(c => c.CategoryName),
+                "Count" => query.OrderBy(c => c.Products.Count),
+                "count_desc" => query.OrderByDescending(c => c.Products.Count),
+                _ => query.OrderByDescending(c => c.LastUpdated)
+            };
+
+            var data = await query
+                .Select(c => new CategoryListViewModel
+                {
+                    CategoryId = c.CategoryId,
+                    CategoryName = c.CategoryName,
+                    ProductCount = c.Products.Count()
+                })
+                .ToListAsync();
+
+            // PAGINATION: 10 Items per page
+            int pageSize = 10;
+            return View(PaginatedList<CategoryListViewModel>.Create(data.AsQueryable(), pageNumber ?? 1, pageSize));
+        }
+
         public IActionResult Create()
         {
             return View();

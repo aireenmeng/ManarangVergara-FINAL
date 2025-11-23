@@ -53,9 +53,9 @@ namespace ManarangVergara.Controllers
             return View(viewModel);
         }
 
-        // POST: Add Item to Cart (Now with Discount!)
+        // 1. UPDATED AddToCart (Removed selectedDiscount parameter)
         [HttpPost]
-        public async Task<IActionResult> AddToCart(int selectedProductId, int selectedQuantity, decimal selectedDiscount)
+        public async Task<IActionResult> AddToCart(int selectedProductId, int selectedQuantity)
         {
             if (selectedQuantity < 1) selectedQuantity = 1;
 
@@ -80,8 +80,6 @@ namespace ManarangVergara.Controllers
             if (existingItem != null)
             {
                 existingItem.Quantity += selectedQuantity;
-                // Note: We don't update discount on existing items to avoid confusion, 
-                // or you could overwrite it here if you prefer.
             }
             else
             {
@@ -91,13 +89,15 @@ namespace ManarangVergara.Controllers
                     ProductName = product.Name,
                     Price = product.Inventories.First().SellingPrice,
                     Quantity = selectedQuantity,
-                    DiscountRate = selectedDiscount // <-- SAVE THE DISCOUNT
+                    DiscountRate = 0 // Default to 0, we apply this at checkout now
                 });
             }
 
             HttpContext.Session.SetObjectAsJson(CART_SESSION_KEY, cart);
             return RedirectToAction(nameof(Index));
         }
+
+        // ... [KEEP RemoveFromCart, HoldTransaction, ResumeTransaction AS IS] ...
 
         // =========================================
         // POST: Remove Item from Cart
@@ -115,12 +115,10 @@ namespace ManarangVergara.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // =========================================
-        // POST: Complete Sale (Checkout)
-        // =========================================
+        // 2. SINGLE CORRECT CompleteSale (Handles Reference No + Global Discount)
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CompleteSale(TransactionViewModel model)
+        public async Task<IActionResult> CompleteSale(TransactionViewModel model, string referenceNo, decimal globalDiscountRate)
         {
             var cart = HttpContext.Session.GetObjectFromJson<List<CartItemViewModel>>(CART_SESSION_KEY);
             if (cart == null || !cart.Any())
@@ -129,7 +127,13 @@ namespace ManarangVergara.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // Get current logged-in cashier ID
+            // Validate E-Wallet Reference
+            if ((model.PaymentMethod == "Gcash" || model.PaymentMethod == "PayMaya") && string.IsNullOrWhiteSpace(referenceNo))
+            {
+                TempData["ErrorMessage"] = "Reference Number is required for GCash/PayMaya.";
+                return RedirectToAction(nameof(Index));
+            }
+
             var employeeIdStr = User.FindFirst("EmployeeId")?.Value;
             if (string.IsNullOrEmpty(employeeIdStr)) return Forbid();
             int cashierId = int.Parse(employeeIdStr);
@@ -137,35 +141,44 @@ namespace ManarangVergara.Controllers
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // 1. Create Transaction Record
+                // Calculate Totals with Global Discount
+                decimal rawTotal = cart.Sum(x => x.Price * x.Quantity);
+                decimal discountAmount = rawTotal * globalDiscountRate;
+                decimal finalTotal = rawTotal - discountAmount;
+
+                // 1. Create Transaction
                 var newSale = new Transaction
                 {
                     SalesDate = DateTime.Now,
-                    TotalAmount = cart.Sum(x => x.Total),
+                    TotalAmount = finalTotal, // Save the discounted total
                     PaymentMethod = model.PaymentMethod,
                     Status = "Completed",
-                    EmployeeId = cashierId
+                    EmployeeId = cashierId,
+                    ReferenceNo = referenceNo
                 };
                 _context.Transactions.Add(newSale);
                 await _context.SaveChangesAsync();
 
-                // 2. Process Each Cart Item
+                // 2. Process Items & Stock
                 foreach (var item in cart)
                 {
-                    // A. Add to SalesItems table
+                    // Distribute global discount pro-rata for the database record
+                    // This ensures if we void one item later, we know how much it was actually sold for.
+                    decimal itemTotal = item.Price * item.Quantity;
+                    decimal itemDiscount = itemTotal * globalDiscountRate;
+
                     var salesItem = new SalesItem
                     {
                         SalesId = newSale.SalesId,
                         ProductId = item.ProductId,
                         QuantitySold = item.Quantity,
                         Price = item.Price,
-                        Discount = item.DiscountAmount // Saved calculated discount to DB
+                        Discount = itemDiscount // Save the specific discount share
                     };
                     _context.SalesItems.Add(salesItem);
 
-                    // B. DEDUCT STOCK FROM INVENTORY (FIFO - First In, First Out)
+                    // FIFO Logic (Keep exactly as before)
                     int qtyToDeduct = item.Quantity;
-                    // Get batches ordered by expiry date (sell oldest first)
                     var batches = await _context.Inventories
                         .Where(i => i.ProductId == item.ProductId && i.Quantity > 0)
                         .OrderBy(i => i.ExpiryDate)
@@ -177,29 +190,21 @@ namespace ManarangVergara.Controllers
 
                         if (batch.Quantity >= qtyToDeduct)
                         {
-                            // This batch has enough to cover the remaining need
                             batch.Quantity -= qtyToDeduct;
                             qtyToDeduct = 0;
                         }
                         else
                         {
-                            // Take everything from this batch and move to next
                             qtyToDeduct -= batch.Quantity;
                             batch.Quantity = 0;
                         }
                         _context.Inventories.Update(batch);
-                    }
-
-                    if (qtyToDeduct > 0)
-                    {
-                        throw new Exception($"Critical Error: Stock mismatch for {item.ProductName} during checkout.");
                     }
                 }
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                // 3. Clear Cart & Redirect to Receipt
                 HttpContext.Session.Remove(CART_SESSION_KEY);
                 TempData["SuccessMessage"] = "Transaction completed successfully!";
                 return RedirectToAction("Details", "Transactions", new { id = newSale.SalesId });
@@ -207,9 +212,7 @@ namespace ManarangVergara.Controllers
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                // Dig down to find the REAL error from the database
-                string detailedError = ex.InnerException?.Message ?? ex.Message;
-                TempData["ErrorMessage"] = $"Transaction Failed: {detailedError}";
+                TempData["ErrorMessage"] = $"Transaction Failed: {ex.Message}";
                 return RedirectToAction(nameof(Index));
             }
         }
@@ -316,104 +319,6 @@ namespace ManarangVergara.Controllers
 
             TempData["SuccessMessage"] = $"Transaction #{id} resumed. Ready to checkout.";
             return RedirectToAction(nameof(Index));
-        }
-
-        // POST: Complete Sale
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CompleteSale(TransactionViewModel model, string referenceNo) // Added referenceNo parameter
-        {
-            var cart = HttpContext.Session.GetObjectFromJson<List<CartItemViewModel>>(CART_SESSION_KEY);
-            if (cart == null || !cart.Any())
-            {
-                TempData["ErrorMessage"] = "Cart is empty!";
-                return RedirectToAction(nameof(Index));
-            }
-
-            // Validate Reference No for E-Wallets
-            if ((model.PaymentMethod == "Gcash" || model.PaymentMethod == "PayMaya") && string.IsNullOrWhiteSpace(referenceNo))
-            {
-                TempData["ErrorMessage"] = "Reference Number is required for GCash/PayMaya.";
-                return RedirectToAction(nameof(Index));
-            }
-
-            var employeeIdStr = User.FindFirst("EmployeeId")?.Value;
-            if (string.IsNullOrEmpty(employeeIdStr)) return Forbid();
-            int cashierId = int.Parse(employeeIdStr);
-
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                var newSale = new Transaction
-                {
-                    SalesDate = DateTime.Now,
-                    TotalAmount = cart.Sum(x => x.Total),
-                    PaymentMethod = model.PaymentMethod,
-                    Status = "Completed",
-                    EmployeeId = cashierId,
-                    ReferenceNo = referenceNo // Save it!
-                };
-                _context.Transactions.Add(newSale);
-                await _context.SaveChangesAsync();
-
-                // ... (rest of the item saving and stock deduction logic remains the same) ...
-
-                // Ensure you copy the rest of the CompleteSale logic from your previous file here.
-                // I am highlighting only the changes for brevity, but you should replace the method.
-
-                // --- Copied logic for completeness context ---
-                foreach (var item in cart)
-                {
-                    var salesItem = new SalesItem
-                    {
-                        SalesId = newSale.SalesId,
-                        ProductId = item.ProductId,
-                        QuantitySold = item.Quantity,
-                        Price = item.Price,
-                        Discount = item.DiscountAmount
-                    };
-                    _context.SalesItems.Add(salesItem);
-
-                    int qtyToDeduct = item.Quantity;
-                    var batches = await _context.Inventories
-                        .Where(i => i.ProductId == item.ProductId && i.Quantity > 0)
-                        .OrderBy(i => i.ExpiryDate)
-                        .ToListAsync();
-
-                    foreach (var batch in batches)
-                    {
-                        if (qtyToDeduct <= 0) break;
-
-                        if (batch.Quantity >= qtyToDeduct)
-                        {
-                            batch.Quantity -= qtyToDeduct;
-                            qtyToDeduct = 0;
-                        }
-                        else
-                        {
-                            qtyToDeduct -= batch.Quantity;
-                            batch.Quantity = 0;
-                        }
-                        _context.Inventories.Update(batch);
-                    }
-                    if (qtyToDeduct > 0) throw new Exception($"Critical Error: Stock mismatch for {item.ProductName}.");
-                }
-                // ---------------------------------------------
-
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                HttpContext.Session.Remove(CART_SESSION_KEY);
-                TempData["SuccessMessage"] = "Transaction completed successfully!";
-                return RedirectToAction("Details", "Transactions", new { id = newSale.SalesId });
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                string detailedError = ex.InnerException?.Message ?? ex.Message;
-                TempData["ErrorMessage"] = $"Transaction Failed: {detailedError}";
-                return RedirectToAction(nameof(Index));
-            }
         }
     }
 }

@@ -75,7 +75,6 @@
                                 <th>Product</th>
                                 <th class="text-center">Qty</th>
                                 <th class="text-end">Price</th>
-                                <th class="text-end">Disc.</th>
                                 <th class="text-end">Total</th>
                                 <th></th>
                             </tr>
@@ -84,22 +83,11 @@
                             @foreach (var item in Model.Cart)
                             {
                                 <tr>
-                                    <td class="fw-bold align-middle text-truncate" style="max-width: 150px;">@item.ProductName</td>
-                                    <td class="text-center align-middle">@item.Quantity</td>
-                                    <td class="text-end align-middle">@item.Price.ToString("N2")</td>
-                                    <td class="text-end align-middle text-danger">
-                                        @if (item.DiscountRate > 0)
-                                        {
-                                            <small>-@item.DiscountAmount.ToString("N2")</small>
-                                        }
-                                        else
-                                        {
-
-                                            <span class="text-muted">-</span>
-                                        }
-                                    </td>
-                                    <td class="text-end fw-bold align-middle">@item.Total.ToString("N2")</td>
-                                    <td class="text-end align-middle">
+                                    <td class="fw-bold text-truncate" style="max-width: 150px;">@item.ProductName</td>
+                                    <td class="text-center">@item.Quantity</td>
+                                    <td class="text-end">₱@item.Price.ToString("N2")</td>
+                                    <td class="text-end fw-bold">₱@((item.Price * item.Quantity).ToString("N2"))</td>
+                                    <td class="text-end">
                                         <form asp-action="RemoveFromCart" asp-route-productId="@item.ProductId" method="post">
                                             <button type="submit" class="btn btn-sm btn-link text-danger p-0"><i class="fa-solid fa-xmark"></i></button>
                                         </form>
@@ -111,25 +99,36 @@
                 </div>
 
                 <div class="card-footer bg-white p-3 border-top shadow-lg">
-                    <input type="hidden" id="grandTotalRaw" value="@Model.GrandTotal" />
-
-                    <div class="d-flex justify-content-between mb-2">
-                        <h4 class="fw-bold">Total Due:</h4>
-                        <h2 class="fw-bold text-primary">₱@Model.GrandTotal.ToString("N2")</h2>
-                    </div>
-
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label small fw-bold text-muted mb-1">Money Received (₱)</label>
-                            <input type="number" id="moneyReceived" class="form-control form-control-lg fw-bold text-end" placeholder="0.00" min="0" step="0.01" oninput="calculateChange()" />
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small fw-bold text-muted mb-1">Change Due (₱)</label>
-                            <input type="text" id="changeDue" class="form-control form-control-lg fw-bold text-end bg-light" placeholder="0.00" readonly />
-                        </div>
-                    </div>
-
                     <form asp-action="CompleteSale" method="post" id="checkoutForm">
+
+                        <input type="hidden" id="rawSubtotal" value="@Model.Cart.Sum(x => x.Price * x.Quantity)" />
+
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="fw-bold me-2">Discount:</label>
+                            <select name="globalDiscountRate" id="globalDiscountRate" class="form-select form-select-sm w-50 fw-bold text-danger" onchange="calculateTotals()">
+                                <option value="0">None (0%)</option>
+                                <option value="0.20">Senior/PWD (20%)</option>
+                                <option value="0.05">Promo (5%)</option>
+                                <option value="0.10">Employee (10%)</option>
+                            </select>
+                        </div>
+
+                        <div class="d-flex justify-content-between mb-2">
+                            <h4 class="fw-bold">Total Due:</h4>
+                            <h2 class="fw-bold text-primary" id="displayTotal">₱@Model.Cart.Sum(x => x.Price * x.Quantity).ToString("N2")</h2>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label small fw-bold text-muted mb-1">Money Received</label>
+                                <input type="number" id="moneyReceived" class="form-control fw-bold text-end" placeholder="0.00" min="0" step="0.01" oninput="calculateTotals()" />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold text-muted mb-1">Change</label>
+                                <input type="text" id="changeDue" class="form-control fw-bold text-end bg-light" placeholder="0.00" readonly />
+                            </div>
+                        </div>
+
                         <div class="mb-2">
                             <label class="form-label fw-bold">Payment Method</label>
                             <select asp-for="PaymentMethod" class="form-select fw-bold" id="paymentMethod" onchange="toggleReferenceField()">
@@ -139,7 +138,6 @@
                             </select>
                         </div>
 
-                        <!-- Reference Number Field (Hidden by default) -->
                         <div class="mb-3" id="referenceField" style="display:none;">
                             <label class="form-label fw-bold text-primary">Reference Number</label>
                             <input type="text" name="referenceNo" class="form-control" placeholder="Enter Ref No." />
@@ -157,41 +155,51 @@
                 </div>
             </div>
         </div>
-    </div>
-</div>
 
-<script>
-    function calculateChange() {
-        // 1. Get the values
-        const total = parseFloat(document.getElementById('grandTotalRaw').value) || 0;
-        const received = parseFloat(document.getElementById('moneyReceived').value) || 0;
+        <script>
+            function calculateTotals() {
+                // 1. Get Values
+                const subtotal = parseFloat(document.getElementById('rawSubtotal').value) || 0;
+                const discountRate = parseFloat(document.getElementById('globalDiscountRate').value) || 0;
+                const received = parseFloat(document.getElementById('moneyReceived').value) || 0;
 
-        // 2. Calculate Change
-        const change = received - total;
+                // 2. Calculate Net Total
+                const discountAmount = subtotal * discountRate;
+                const netTotal = subtotal - discountAmount;
 
-        // 3. Display it (Formatted nicely)
-        const changeInput = document.getElementById('changeDue');
-        if (change >= 0) {
-             changeInput.value = change.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-             changeInput.classList.remove('text-danger', 'is-invalid');
-             changeInput.classList.add('text-success', 'is-valid');
-        } else {
-             changeInput.value = "Insufficient";
-             changeInput.classList.remove('text-success', 'is-valid');
-             changeInput.classList.add('text-danger', 'is-invalid');
-        }
-    }
+                // 3. Update Total Display
+                document.getElementById('displayTotal').innerText = '₱' + netTotal.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    function toggleReferenceField() {
-            const method = document.getElementById('paymentMethod').value;
-            const field = document.getElementById('referenceField');
-            if (method === 'Gcash' || method === 'PayMaya') {
-                field.style.display = 'block';
-                field.querySelector('input').setAttribute('required', 'required');
-            } else {
-                field.style.display = 'none';
-                field.querySelector('input').removeAttribute('required');
-                field.querySelector('input').value = '';
+                // 4. Calculate Change
+                const change = received - netTotal;
+                const changeInput = document.getElementById('changeDue');
+
+                if (received > 0) {
+                     if (change >= 0) {
+                         changeInput.value = change.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                         changeInput.classList.remove('text-danger', 'is-invalid');
+                         changeInput.classList.add('text-success', 'is-valid');
+                    } else {
+                         changeInput.value = "Insufficient";
+                         changeInput.classList.remove('text-success', 'is-valid');
+                         changeInput.classList.add('text-danger', 'is-invalid');
+                    }
+                } else {
+                     changeInput.value = "0.00";
+                     changeInput.classList.remove('text-danger', 'text-success', 'is-invalid', 'is-valid');
+                }
             }
-        }
-</script>
+
+            function toggleReferenceField() {
+                const method = document.getElementById('paymentMethod').value;
+                const field = document.getElementById('referenceField');
+                if (method === 'Gcash' || method === 'PayMaya') {
+                    field.style.display = 'block';
+                    field.querySelector('input').setAttribute('required', 'required');
+                } else {
+                    field.style.display = 'none';
+                    field.querySelector('input').removeAttribute('required');
+                    field.querySelector('input').value = '';
+                }
+            }
+        </script>

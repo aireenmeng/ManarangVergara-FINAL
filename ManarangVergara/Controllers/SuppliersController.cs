@@ -67,6 +67,30 @@ namespace ManarangVergara.Controllers
             return View(PaginatedList<SupplierListViewModel>.Create(data.AsQueryable(), pageNumber ?? 1, pageSize));
         }
 
+        public async Task<IActionResult> Archives(string searchString, int? pageNumber = 1)
+        {
+            ViewData["CurrentFilter"] = searchString;
+
+            var query = _context.Suppliers.Where(s => s.IsActive == false); // Inactive only
+
+            if (!string.IsNullOrEmpty(searchString))
+            {
+                query = query.Where(s => s.Name.Contains(searchString));
+            }
+
+            query = query.OrderByDescending(s => s.LastUpdated); // Newest archives first
+
+            var list = await query.Select(s => new SupplierListViewModel
+            {
+                SupplierId = s.SupplierId,
+                Name = s.Name,
+                ContactInfo = s.ContactInfo,
+                ProductCount = s.Products.Count()
+            }).ToListAsync();
+
+            return View(PaginatedList<SupplierListViewModel>.Create(list.AsQueryable(), pageNumber ?? 1, 10));
+        }
+
         public IActionResult Create()
         {
             return View();

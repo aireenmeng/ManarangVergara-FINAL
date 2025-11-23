@@ -95,6 +95,56 @@ namespace ManarangVergara.Controllers
             return View(PaginatedList<InventoryListViewModel>.Create(mappedList.AsQueryable(), pageNumber ?? 1, pageSize));
         }
 
+        // 1. NEW: Archives Page (Paginated & Sorted)
+        public async Task<IActionResult> Archives(string searchString, string sortOrder, int? pageNumber = 1)
+        {
+            ViewData["CurrentFilter"] = searchString;
+            ViewData["CurrentSort"] = sortOrder;
+
+            ViewData["NameSortParm"] = String.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
+            ViewData["CatSortParm"] = sortOrder == "Category" ? "cat_desc" : "Category";
+            ViewData["ExpirySortParm"] = sortOrder == "Expiry" ? "expiry_desc" : "Expiry";
+
+            // Filter only INACTIVE items
+            var query = _context.Products
+                .Include(p => p.Category)
+                .Include(p => p.Inventories)
+                .Where(p => p.IsActive == 0) // <--- Key difference
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(searchString))
+            {
+                query = query.Where(p => p.Name.Contains(searchString) || p.Category.CategoryName.Contains(searchString));
+            }
+
+            // Default sort: Most recently archived/updated first
+            query = sortOrder switch
+            {
+                "name_desc" => query.OrderByDescending(p => p.Name),
+                "Category" => query.OrderBy(p => p.Category.CategoryName),
+                "cat_desc" => query.OrderByDescending(p => p.Category.CategoryName),
+                "Expiry" => query.OrderBy(p => p.Inventories.Min(i => i.ExpiryDate)),
+                "expiry_desc" => query.OrderByDescending(p => p.Inventories.Min(i => i.ExpiryDate)),
+                _ => query.OrderByDescending(p => p.CreatedAt) // Or LastUpdated if you have it
+            };
+
+            var rawData = await query.ToListAsync();
+
+            var list = rawData.Select(p => new InventoryListViewModel
+            {
+                ProductId = p.ProductId,
+                ProductName = p.Name,
+                CategoryName = p.Category?.CategoryName ?? "N/A",
+                Manufacturer = p.Manufacturer,
+                Quantity = p.Inventories.Sum(i => i.Quantity),
+                SellingPrice = p.Inventories.FirstOrDefault()?.SellingPrice ?? 0,
+                Status = "Archived"
+            });
+
+            int pageSize = 10;
+            return View(PaginatedList<InventoryListViewModel>.Create(list.AsQueryable(), pageNumber ?? 1, pageSize));
+        }
+
         // --- NEW: ADJUST STOCK ACTION ---
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -309,6 +359,8 @@ namespace ManarangVergara.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // 2. UPDATE: Unarchive (Restore)
+        // Ensure this updates the timestamp so it appears at the TOP of the Active list
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,Owner,Manager")]
@@ -318,11 +370,14 @@ namespace ManarangVergara.Controllers
             if (product == null) return NotFound();
 
             product.IsActive = 1;
+            // product.LastUpdated = DateTime.Now; // <--- Ensure your Product model has this field!
+            // If Product doesn't have LastUpdated, rely on sorting logic or add the column.
+
             _context.Update(product);
             await _context.SaveChangesAsync();
 
-            TempData["SuccessMessage"] = "Product restored.";
-            return RedirectToAction(nameof(Index));
+            TempData["SuccessMessage"] = "Product restored successfully.";
+            return RedirectToAction(nameof(Archives)); // Stay on Archive page or go to Index
         }
 
         // GET: Inventory/History/5

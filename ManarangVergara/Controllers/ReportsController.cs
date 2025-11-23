@@ -18,62 +18,120 @@ namespace ManarangVergara.Controllers
             _context = context;
         }
 
-        // GET: Reports (The Advanced Filter Page)
-        public async Task<IActionResult> Index(DateTime? startDate, DateTime? endDate, string? paymentMethod, int? cashierId)
+        public async Task<IActionResult> Index(DateTime? startDate, DateTime? endDate)
         {
-            // 1. Default Defaults: If no date chosen, show THIS MONTH
-            if (!startDate.HasValue) startDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
-            if (!endDate.HasValue) endDate = DateTime.Today;
+            // 1. Default to This Month if no date selected
+            var start = startDate ?? new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+            var end = endDate ?? DateTime.Today;
 
-            // 2. Start Query
-            var query = _context.Transactions
-                .Include(t => t.Employee)
-                .Include(t => t.SalesItems)
-                .Where(t => t.Status == "Completed"); // Only report real sales
+            // 2. BASE QUERY: Completed Transactions in Range
+            var salesData = await _context.SalesItems
+                .Include(si => si.Sales)
+                .Include(si => si.Product).ThenInclude(p => p.Category)
+                .Include(si => si.Product).ThenInclude(p => p.Inventories)
+                .Where(si => si.Sales.Status == "Completed"
+                          && si.Sales.SalesDate >= start
+                          && si.Sales.SalesDate < end.AddDays(1))
+                .ToListAsync();
 
-            // 3. Apply Filters
-            // Date Filter (Add 1 day to EndDate to include the full day's transactions)
-            query = query.Where(t => t.SalesDate >= startDate && t.SalesDate < endDate.Value.AddDays(1));
+            // 3. TAB 1 LOGIC: SALES
+            var categoryStats = salesData
+                .GroupBy(si => si.Product.Category.CategoryName)
+                .Select(g => new CategorySalesData
+                {
+                    Category = g.Key,
+                    TotalSales = g.Sum(si => (si.Price * si.QuantitySold) - si.Discount)
+                }).OrderByDescending(x => x.TotalSales).ToList();
 
-            if (!string.IsNullOrEmpty(paymentMethod))
-            {
-                query = query.Where(t => t.PaymentMethod == paymentMethod);
-            }
+            var topProducts = salesData
+                .GroupBy(si => si.Product.Name)
+                .Select(g => new TopProductData
+                {
+                    ProductName = g.Key,
+                    QuantitySold = g.Sum(si => si.QuantitySold),
+                    Revenue = g.Sum(si => (si.Price * si.QuantitySold) - si.Discount)
+                }).OrderByDescending(x => x.QuantitySold).Take(10).ToList();
 
-            if (cashierId.HasValue)
-            {
-                query = query.Where(t => t.EmployeeId == cashierId);
-            }
+            // 4. TAB 2 LOGIC: INVENTORY (Current State, not Historical)
+            var inventory = await _context.Inventories.Include(i => i.Product).Where(i => i.Quantity > 0).ToListAsync();
 
-            // 4. Execute Query
-            var results = await query.OrderByDescending(t => t.SalesDate).ToListAsync();
+            var nearExpiry = inventory.Where(i => i.ExpiryDate <= DateOnly.FromDateTime(DateTime.Today.AddDays(90)))
+                                      .OrderBy(i => i.ExpiryDate)
+                                      .Select(i => new InventoryListViewModel
+                                      {
+                                          ProductName = i.Product.Name,
+                                          BatchNumber = i.BatchNumber, // Assuming you added this to VM, if not ignore
+                                          ExpiryDate = i.ExpiryDate,
+                                          Quantity = i.Quantity
+                                      }).ToList();
 
-            // 5. Prepare ViewModel
+            // 5. TAB 3 LOGIC: PROFITABILITY
+            var profitability = salesData
+                .GroupBy(si => si.Product)
+                .Select(g => {
+                    // Estimated Cost (Latest Batch)
+                    decimal cost = g.Key.Inventories.OrderByDescending(i => i.LastUpdated).FirstOrDefault()?.CostPrice ?? 0;
+                    decimal revenue = g.Sum(si => (si.Price * si.QuantitySold) - si.Discount);
+                    int qty = g.Sum(si => si.QuantitySold);
+
+                    return new ProductProfitData
+                    {
+                        ProductName = g.Key.Name,
+                        QtySold = qty,
+                        Revenue = revenue,
+                        Cost = cost * qty
+                    };
+                }).OrderByDescending(x => x.Profit).ToList();
+
+            // 6. TAB 4: AUDIT (Voids)
+            var voids = await _context.Voids
+                .Include(v => v.Sales).ThenInclude(s => s.Employee)
+                .Include(v => v.Employee)
+                .Where(v => v.VoidedAt >= start && v.VoidedAt < end.AddDays(1))
+                .OrderByDescending(v => v.VoidedAt)
+                .Select(v => new VoidHistoryViewModel
+                {
+                    TransactionId = v.SalesId,
+                    VoidDate = v.VoidedAt,
+                    CashierName = v.Sales.Employee.EmployeeName,
+                    ManagerName = v.Employee.EmployeeName, // Authorized By
+                    Reason = v.VoidReason,
+                    TotalAmount = v.Sales.TotalAmount
+                }).ToListAsync();
+
+            // 7. SECURITY CHECK (New Logic)
+            // Only Owners and Admins can see Cost, Profit, and Margins.
+            bool canViewFinancials = User.IsInRole("Owner") || User.IsInRole("Admin");
+
+            // BUILD MODEL
             var model = new ReportViewModel
             {
-                StartDate = startDate,
-                EndDate = endDate,
-                PaymentMethod = paymentMethod,
-                CashierId = cashierId,
+                StartDate = start,
+                EndDate = end,
+                TotalRevenue = salesData.Sum(si => (si.Price * si.QuantitySold) - si.Discount),
+                TransactionCount = salesData.Select(si => si.SalesId).Distinct().Count(),
+                SalesByCategory = categoryStats,
+                TopSellingProducts = topProducts,
+                NearExpiryItems = nearExpiry,
+                RecentVoids = voids,
+                GeneratedBy = User.Identity.Name,
+                GeneratedAt = DateTime.Now,
 
-                Transactions = results,
-                TotalRevenue = results.Sum(t => t.TotalAmount),
-                TransactionCount = results.Count,
+                // SENSITIVE DATA HANDLING
+                ShowFinancials = canViewFinancials,
 
-                // Load Cashiers for the dropdown list
-                CashierList = await _context.Employees
-                    .Where(e => e.Position == "Cashier" && e.IsActive)
-                    .ToListAsync(),
+                // If Manager, hide these numbers (Set to 0 or Empty List)
+                TotalInventoryValue = canViewFinancials ? inventory.Sum(i => i.Quantity * i.CostPrice) : 0,
+                GrossProfit = canViewFinancials ? profitability.Sum(x => x.Profit) : 0,
 
-                // Metadata for the PDF/Print footer
-                GeneratedBy = User.FindFirst("FullName")?.Value ?? User.Identity.Name,
-                GeneratedAt = DateTime.Now
+                // We still pass the list to Managers so they can see REVENUE, 
+                // but the View will hide the Cost/Profit columns.
+                ProductProfitability = profitability
             };
 
             return View(model);
         }
-
-        // NOTE: We are replacing the old "DailyReport" with this dynamic "Index" page.
-        // This one page can generate Daily, Monthly, or Yearly reports just by changing the dates!
     }
+    // NOTE: We are replacing the old "DailyReport" with this dynamic "Index" page.
+    // This one page can generate Daily, Monthly, or Yearly reports just by changing the dates!
 }

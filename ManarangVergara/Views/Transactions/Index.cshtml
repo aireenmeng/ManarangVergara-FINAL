@@ -6,9 +6,17 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2>Sales Transaction History</h2>
-    <a asp-controller="Pos" asp-action="Index" class="btn btn-success btn-lg">
-        <i class="fa-solid fa-cash-register me-2"></i>New Transaction (POS)
-    </a>
+    <div>
+        @if (User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Manager"))
+        {
+            <a asp-action="VoidHistory" class="btn btn-outline-danger me-2">
+                <i class="fa-solid fa-ban me-1"></i>View Void Log
+            </a>
+        }
+        <a asp-controller="Pos" asp-action="Index" class="btn btn-success">
+            <i class="fa-solid fa-cash-register me-2"></i>New Transaction (POS)
+        </a>
+    </div>
 </div>
 
 <!-- ALERTS (for future use) -->

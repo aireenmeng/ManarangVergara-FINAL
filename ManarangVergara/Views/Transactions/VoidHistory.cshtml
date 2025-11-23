@@ -1,24 +1,28 @@
-﻿@model IEnumerable<ManarangVergara.Models.VoidHistoryViewModel>
+﻿@using ManarangVergara.Helpers
+@model PaginatedList<ManarangVergara.Models.VoidHistoryViewModel>
 @{
-    ViewData["Title"] = "Voided Transactions";
+    ViewData["Title"] = "Void Log";
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>Voided Transactions Log</h2>
+    <h2 class="text-danger"><i class="fa-solid fa-ban me-2"></i>Voided Transactions Log</h2>
     <a asp-action="Index" class="btn btn-outline-secondary">
-        <i class="fa-solid fa-arrow-left me-2"></i>Back to Sales History
+        <i class="fa-solid fa-arrow-left me-2"></i>Back to Sales
     </a>
 </div>
 
-<div class="card shadow-sm">
-    <div class="card-body">
+<div class="card shadow-sm border-danger">
+    <div class="card-header bg-danger text-white small fw-bold">
+        <i class="fa-solid fa-shield-halved me-1"></i> SECURITY AUDIT TRAIL
+    </div>
+    <div class="card-body table-responsive">
         <table class="table table-hover align-middle">
             <thead class="table-light">
                 <tr>
-                    <th>Txn ID</th>
-                    <th>Voided Date</th>
+                    <th>Txn #</th>
+                    <th>Date Voided</th>
                     <th>Original Cashier</th>
-                    <th>Voided By (Manager)</th>
+                    <th>Authorized By</th>
                     <th>Amount</th>
                     <th>Reason</th>
                 </tr>
@@ -29,22 +33,31 @@
                     <tr>
                         <td class="fw-bold">#@item.TransactionId</td>
                         <td>@item.VoidDate.ToString("MMM dd, yyyy hh:mm tt")</td>
-                        <td>@item.CashierName</td>
-                        <td class="text-danger fw-bold">@item.ManagerName</td>
-                        <td class="text-success">₱@item.TotalAmount.ToString("N2")</td>
-                        <td>@item.Reason</td>
+                        <td class="text-muted">@item.CashierName</td>
+                        <td class="fw-bold text-primary">
+                            <i class="fa-solid fa-user-shield me-1"></i>@item.ManagerName
+                        </td>
+                        <td class="text-decoration-line-through text-muted">₱@item.TotalAmount.ToString("N2")</td>
+                        <td class="text-danger fst-italic">"@item.Reason"</td>
                     </tr>
                 }
-
                 @if (!Model.Any())
                 {
-                    <tr>
-                        <td colspan="6" class="text-center text-muted py-4">
-                            No voided transactions found.
-                        </td>
-                    </tr>
+                    <tr><td colspan="6" class="text-center py-4 text-success"><i class="fa-solid fa-check-circle me-2"></i>No voided transactions found.</td></tr>
                 }
             </tbody>
         </table>
+    </div>
+</div>
+
+@{
+    var prevDisabled = !Model.HasPreviousPage ? "disabled" : "";
+    var nextDisabled = !Model.HasNextPage ? "disabled" : "";
+}
+<div class="d-flex justify-content-between align-items-center mt-3">
+    <span class="text-muted small">Page @Model.PageIndex of @Model.TotalPages</span>
+    <div>
+        <a asp-action="VoidHistory" asp-route-pageNumber="@(Model.PageIndex - 1)" class="btn btn-outline-secondary @prevDisabled">Previous</a>
+        <a asp-action="VoidHistory" asp-route-pageNumber="@(Model.PageIndex + 1)" class="btn btn-outline-secondary @nextDisabled">Next</a>
     </div>
 </div>

@@ -12,5 +12,6 @@ namespace ManarangVergara.Models
         public decimal SellingPrice { get; set; }
         public DateOnly ExpiryDate { get; set; }
         public string Status { get; set; } = "Active";
+        public string BatchNumber { get; set; } = "";
     }
 }

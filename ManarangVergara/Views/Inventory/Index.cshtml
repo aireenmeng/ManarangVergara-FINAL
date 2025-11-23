@@ -7,18 +7,9 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2>Inventory Master List</h2>
     <div>
-        @if ((bool?)ViewData["ShowArchived"] == true)
-        {
-            <a asp-action="Index" asp-route-showArchived="false" class="btn btn-outline-secondary me-2">
-                <i class="fa-solid fa-eye-slash me-1"></i>Hide Archived
-            </a>
-        }
-        else
-        {
-            <a asp-action="Index" asp-route-showArchived="true" class="btn btn-outline-secondary me-2">
-                <i class="fa-solid fa-box-archive me-1"></i>Show Archived
-            </a>
-        }
+        <a asp-action="Archives" class="btn btn-secondary me-2">
+            <i class="fa-solid fa-box-archive me-2"></i>View Archives
+        </a>
 
         @if (User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Manager"))
         {

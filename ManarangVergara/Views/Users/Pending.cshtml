@@ -1,0 +1,85 @@
+﻿@using ManarangVergara.Helpers
+@model PaginatedList<ManarangVergara.Models.Database.Employee>
+@{
+    ViewData["Title"] = "Pending Invitations";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="text-warning"><i class="fa-solid fa-envelope-open-text me-2"></i>Pending Invitations</h2>
+    <div>
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="fa-solid fa-users me-2"></i>Back to Active Users
+        </a>
+        <a asp-action="Create" class="btn btn-primary ms-2">
+            <i class="fa-solid fa-plus me-2"></i>Invite New
+        </a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-check-circle me-2"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="card shadow-sm">
+    <div class="card-body table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Sent To (Name)</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Expires In</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td class="fw-bold">@item.EmployeeName</td>
+                        <td>@item.ContactInfo</td>
+                        <td><span class="badge bg-secondary">@item.Position</span></td>
+                        <td>
+                            @if (item.ResetTokenExpiry > DateTime.UtcNow)
+                            {
+                                var timeLeft = item.ResetTokenExpiry.Value - DateTime.UtcNow;
+                                <span class="text-success small">@timeLeft.Hours hours left</span>
+                            }
+                            else
+                            {
+                                <span class="text-danger fw-bold small">EXPIRED</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <form asp-action="CancelInvite" asp-route-id="@item.EmployeeId" method="post" style="display:inline;" onsubmit="return confirm('Cancel invitation for @item.EmployeeName?');">
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    <i class="fa-solid fa-xmark me-1"></i> Cancel
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Any())
+                {
+                    <tr><td colspan="5" class="text-center py-4">No pending invitations.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@{
+    var prevDisabled = !Model.HasPreviousPage ? "disabled" : "";
+    var nextDisabled = !Model.HasNextPage ? "disabled" : "";
+}
+<div class="d-flex justify-content-between align-items-center mt-3">
+    <span class="text-muted small">Page @Model.PageIndex of @Model.TotalPages</span>
+    <div>
+        <a asp-action="Pending" asp-route-pageNumber="@(Model.PageIndex - 1)" class="btn btn-outline-secondary @prevDisabled">Previous</a>
+        <a asp-action="Pending" asp-route-pageNumber="@(Model.PageIndex + 1)" class="btn btn-outline-secondary @nextDisabled">Next</a>
+    </div>
+</div>

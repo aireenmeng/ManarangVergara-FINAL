@@ -45,6 +45,11 @@
                         <div class="col-6 text-end">
                             <p class="mb-0"><strong>Cashier:</strong> @Model.Employee.EmployeeName</p>
                             <p class="mb-0"><strong>Payment:</strong> @Model.PaymentMethod</p>
+
+                            @if (!string.IsNullOrEmpty(Model.ReferenceNo))
+                            {
+                                <p class="mb-0 text-muted small"><strong>Ref No:</strong> @Model.ReferenceNo</p>
+                            }
                         </div>
                     </div>
 

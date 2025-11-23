@@ -174,27 +174,29 @@ namespace ManarangVergara.Controllers
             }
         }
 
-        // GET: Void History
+        // GET: Void History (Paginated)
         [Authorize(Roles = "Admin,Owner,Manager")]
-        public async Task<IActionResult> VoidHistory()
+        public async Task<IActionResult> VoidHistory(int? pageNumber = 1)
         {
-            var voids = await _context.Voids
+            var query = _context.Voids
                 .Include(v => v.Sales)
                 .Include(v => v.Sales.Employee) // Original Cashier
                 .Include(v => v.Employee)       // Manager who voided
-                .OrderByDescending(v => v.VoidedAt)
-                .Select(v => new VoidHistoryViewModel
-                {
-                    TransactionId = v.SalesId,
-                    VoidDate = v.VoidedAt,
-                    CashierName = v.Sales.Employee.EmployeeName,
-                    ManagerName = v.Employee.EmployeeName,
-                    TotalAmount = v.Sales.TotalAmount,
-                    Reason = v.VoidReason
-                })
-                .ToListAsync();
+                .OrderByDescending(v => v.VoidedAt);
 
-            return View(voids);
+            var list = await query.Select(v => new VoidHistoryViewModel
+            {
+                TransactionId = v.SalesId,
+                VoidDate = v.VoidedAt,
+                CashierName = v.Sales.Employee.EmployeeName,
+                ManagerName = v.Employee.EmployeeName,
+                TotalAmount = v.Sales.TotalAmount,
+                Reason = v.VoidReason
+            }).ToListAsync();
+
+            // PAGINATION: 10 Items
+            int pageSize = 10;
+            return View(PaginatedList<VoidHistoryViewModel>.Create(list.AsQueryable(), pageNumber ?? 1, pageSize));
         }
     }
 }
