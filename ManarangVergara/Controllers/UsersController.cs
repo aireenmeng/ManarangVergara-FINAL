@@ -112,10 +112,11 @@ namespace ManarangVergara.Controllers
 
             if (ModelState.IsValid)
             {
-                // 2. SECURITY: Admin Creation Restriction
-                if (employee.Position == "Admin" && !User.IsInRole("Owner"))
+                bool iAmOwner = User.IsInRole("Owner");
+
+                if ((employee.Position == "Owner" || employee.Position == "Admin") && !iAmOwner)
                 {
-                    ModelState.AddModelError("Position", "Only the Owner can create new Admin accounts.");
+                    ModelState.AddModelError("Position", "Only the System Owner can create Admin or Owner accounts.");
                     return View(employee);
                 }
 

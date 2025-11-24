@@ -189,21 +189,68 @@
             options: { responsive: true, maintainAspectRatio: false }
         });
     </script>
+
     <style>
+        /* --- PRINT STYLES --- */
         @@media print {
-            .no-print {
+            /* 1. CRITICAL: RESET GLOBAL LAYOUT SCROLLING */
+            /* This overrides the _Layout.cshtml 'vh-100' and 'overflow-y: auto' */
+            html, body, .container-fluid, .row, .col, main {
+                height: auto !important;
+                min-height: 0 !important;
+                overflow: visible !important;
+                display: block !important; /* Disables Flexbox behavior during print */
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            /* 2. HIDE UI ELEMENTS */
+            .no-print,
+            .sidebar,
+            .navbar,
+            header,
+            footer,
+            #reportTabs,
+            .btn {
                 display: none !important;
             }
-
-            .tab-pane {
-                display: block !important;
-                opacity: 1 !important;
+            /* 3. EXPAND ALL TABS (So they print one after another) */
+            .tab-content > .tab-pane {
+                display: block !important; /* Force display */
+                opacity: 1 !important; /* Force visibility */
+                visibility: visible !important;
             }
-            /* Show ALL tabs when printing */
+            /* 4. FORCE PAGE BREAKS (Clean Organization) */
+            /* This ensures Sales, Inventory, and Profit start on fresh pages if they are long */
+            .tab-pane {
+                page-break-before: always;
+                break-before: page;
+                margin-top: 0px;
+            }
+                /* Exception: Don't break before the very first tab (Sales) */
+                .tab-pane:first-child {
+                    page-break-before: avoid;
+                }
+            /* 5. CLEAN UP VISUALS */
             .card {
-                border: 1px solid #ccc;
+                border: 1px solid #ddd !important; /* Keep a light border for structure */
+                box-shadow: none !important;
+                margin-bottom: 20px !important;
+                page-break-inside: avoid; /* Try to keep individual cards intact */
+            }
+            /* Resize chart to save ink and space */
+            canvas {
+                max-height: 300px !important;
+                width: 100% !important;
+            }
+            /* Add a header to identifying the printout */
+            body::before {
+                content: "MedTory Business Report - Generated on @DateTime.Now.ToString("MMM dd, yyyy")";
+                display: block;
+                text-align: center;
+                font-weight: bold;
+                font-size: 18px;
                 margin-bottom: 20px;
-                page-break-inside: avoid;
             }
         }
     </style>

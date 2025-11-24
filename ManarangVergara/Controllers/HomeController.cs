@@ -4,10 +4,15 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ManarangVergara.Models;
 using ManarangVergara.Models.Database;
-using System.Text.Json; // Needed for JSON serialization
+using System.Text.Json;
 
 namespace ManarangVergara.Controllers
 {
+    // ============================================================
+    // HOME CONTROLLER (dashboard)
+    // ============================================================
+    // serves as the landing page after login.
+    // responsible for aggregating kpis, charts, and alerts for the dashboard view.
     [Authorize]
     public class HomeController : Controller
     {
@@ -18,6 +23,11 @@ namespace ManarangVergara.Controllers
             _context = context;
         }
 
+        // ============================================================
+        // 1. DASHBOARD INDEX
+        // ============================================================
+        // fetches real-time business metrics to display on the home screen.
+        // calculates daily sales, low stock alerts, and prepares chart data.
         public async Task<IActionResult> Index()
         {
             var today = DateTime.Today;
@@ -25,22 +35,27 @@ namespace ManarangVergara.Controllers
             var thirtyDaysFromNow = todayDateOnly.AddDays(30);
             int lowStockThreshold = 20;
 
-            // 1. Existing KPI Logic (Keep this)
+            // 1. kpi logic: daily sales & gross profit
+            // fetches all completed transactions for today to sum up the total revenue.
             var dailySales = await _context.Transactions
                 .Where(t => t.SalesDate >= today && t.Status == "Completed")
                 .ToListAsync();
             decimal dailyGrossProfit = dailySales.Sum(t => t.TotalAmount);
 
+            // kpi logic: inventory health
+            // calculates total asset value (cost * qty) and counts items needing attention.
             var totalStockValue = await _context.Inventories.SumAsync(i => i.CostPrice * i.Quantity);
             var lowStockCount = await _context.Inventories.CountAsync(i => i.Quantity <= lowStockThreshold);
             var nearExpiryCount = await _context.Inventories.CountAsync(i => i.ExpiryDate <= thirtyDaysFromNow && i.ExpiryDate >= todayDateOnly);
 
-            // 2. Existing Alerts & Recent Transactions Logic (Keep this)
+            // 2. proactive alerts logic
+            // fetches the specific items that are low stock or near expiry to show in a table.
             var rawAlerts = await _context.Inventories
                 .Include(i => i.Product)
                 .Where(i => i.Quantity <= lowStockThreshold || (i.ExpiryDate <= thirtyDaysFromNow && i.ExpiryDate >= todayDateOnly))
                 .OrderBy(i => i.ExpiryDate).Take(10).ToListAsync();
 
+            // maps the raw data to a viewmodel designed for the alert table ui.
             var alertList = rawAlerts.Select(i => new ProactiveAlertVM
             {
                 ProductName = i.Product.Name,
@@ -51,6 +66,7 @@ namespace ManarangVergara.Controllers
                 Urgency = (i.Quantity == 0 || i.ExpiryDate <= todayDateOnly) ? "Critical" : "Warning"
             }).ToList();
 
+            // fetches the 8 most recent transactions for the "recent sales" feed.
             var recentTxns = await _context.Transactions
                 .OrderByDescending(t => t.SalesDate).Take(8)
                 .Select(t => new TransactionPreviewVM
@@ -63,9 +79,10 @@ namespace ManarangVergara.Controllers
                     CashierName = "N/A"
                 }).ToListAsync();
 
-            // --- NEW: CHART DATA LOGIC (Phase 4) ---
+            // --- new: chart data logic (visualizations) ---
 
-            // A. Bar Chart: Sales Last 7 Days
+            // a. bar chart: sales last 7 days
+            // prepares data for the bar chart by grouping sales by date.
             var sevenDaysAgo = today.AddDays(-6);
             var salesHistory = await _context.Transactions
                 .Where(t => t.SalesDate >= sevenDaysAgo && t.Status == "Completed")
@@ -76,15 +93,16 @@ namespace ManarangVergara.Controllers
             var barLabels = new string[7];
             var barData = new decimal[7];
 
+            // fills in the array for the last 7 days, ensuring 0s for days with no sales.
             for (int i = 0; i < 7; i++)
             {
                 var date = sevenDaysAgo.AddDays(i);
                 barLabels[i] = date.ToString("MMM dd"); // e.g., "Nov 15"
-                // Find total for this date, or 0 if no sales
                 barData[i] = salesHistory.FirstOrDefault(s => s.Date == date)?.Total ?? 0;
             }
 
-            // B. Pie Chart: Top 5 Categories by Volume
+            // b. pie chart: top 5 categories by volume
+            // groups sales items by category to see what type of products sell the most.
             var categoryStats = await _context.SalesItems
                 .Include(si => si.Product).ThenInclude(p => p.Category)
                 .GroupBy(si => si.Product.Category.CategoryName)
@@ -98,6 +116,7 @@ namespace ManarangVergara.Controllers
 
             // -----------------------------
 
+            // constructs the final viewmodel with all the aggregated data.
             var viewModel = new DashboardViewModel
             {
                 DailyGrossProfit = dailyGrossProfit,
@@ -107,7 +126,7 @@ namespace ManarangVergara.Controllers
                 ProactiveAlerts = alertList,
                 RecentTransactions = recentTxns,
 
-                // Assign Chart Data
+                // assign chart data for javascript to consume
                 BarChartLabels = barLabels,
                 BarChartData = barData,
                 PieChartLabels = pieLabels,
@@ -122,6 +141,7 @@ namespace ManarangVergara.Controllers
             return View();
         }
 
+        // handles errors in production environment
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
