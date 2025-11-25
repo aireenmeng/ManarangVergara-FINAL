@@ -53,12 +53,28 @@
                                 <small>0</small>
                             }
                         </td>
-                        <td class="text-end">
+                        <td class="text-end text-nowrap">
                             <form asp-action="Restore" asp-route-id="@item.CategoryId" method="post" style="display:inline;">
-                                <button type="submit" class="btn btn-sm btn-success" title="Restore">
-                                    <i class="fa-solid fa-trash-arrow-up me-1"></i> Restore
+                                <button type="submit" class="btn btn-sm btn-success me-1" title="Restore">
+                                    <i class="fa-solid fa-trash-arrow-up"></i> Restore
                                 </button>
                             </form>
+
+                            @if (item.CanDeletePermanently)
+                            {
+                                <form asp-action="DeletePermanent" asp-route-id="@item.CategoryId" method="post" style="display:inline;"
+                                      onsubmit="return confirm('Are you sure you want to permanently delete this category?');">
+                                    <button type="submit" class="btn btn-sm btn-danger" title="Delete Forever">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn btn-sm btn-secondary disabled" title="Cannot Delete: Has Linked Products">
+                                    <i class="fa-solid fa-ban"></i>
+                                </button>
+                            }
                         </td>
                     </tr>
                 }

@@ -5,7 +5,7 @@
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="text-warning"><i class="fa-solid fa-envelope-open-text me-2"></i>Pending Invitations</h2>
+    <h2 class="text-warning"><i class="fa-solid fa-envelope-open-text me-2"></i>Pending Links</h2>
     <div>
         <a asp-action="Index" class="btn btn-outline-secondary">
             <i class="fa-solid fa-users me-2"></i>Back to Active Users
@@ -29,9 +29,10 @@
         <table class="table table-hover align-middle">
             <thead class="table-light">
                 <tr>
-                    <th>Sent To (Name)</th>
-                    <th>Email</th>
+                    <th>Name</th>
+                    <th>Type</th>
                     <th>Role</th>
+                    <th>Sent By / Date</th>
                     <th>Expires In</th>
                     <th class="text-end">Actions</th>
                 </tr>
@@ -40,9 +41,36 @@
                 @foreach (var item in Model)
                 {
                     <tr>
-                        <td class="fw-bold">@item.EmployeeName</td>
-                        <td>@item.ContactInfo</td>
+                        <td>
+                            <span class="fw-bold">@item.EmployeeName</span><br />
+                            <small class="text-muted">@item.ContactInfo</small>
+                        </td>
+                        <td>
+                            @if (item.IsActive)
+                            {
+                                // if active, they are just resetting a password
+                                <span class="badge bg-info text-dark"><i class="fa-solid fa-key me-1"></i>Reset Pass</span>
+                            }
+                            else
+                            {
+                                // if inactive, they are a new hire
+                                <span class="badge bg-success"><i class="fa-solid fa-user-plus me-1"></i>Activation</span>
+                            }
+                        </td>
                         <td><span class="badge bg-secondary">@item.Position</span></td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(item.TokenSentBy))
+                            {
+                                <small class="fw-bold">@item.TokenSentBy</small>
+                        
+                                <br />
+                                <small class="text-muted">@item.TokenSentDate?.ToString("MMM dd, hh:mm tt")</small>
+                            }
+                            else
+                            {
+                                <small class="text-muted">-</small>
+                            }
+                        </td>
                         <td>
                             @if (item.ResetTokenExpiry > DateTime.UtcNow)
                             {
@@ -55,17 +83,30 @@
                             }
                         </td>
                         <td class="text-end">
-                            <form asp-action="CancelInvite" asp-route-id="@item.EmployeeId" method="post" style="display:inline;" onsubmit="return confirm('Cancel invitation for @item.EmployeeName?');">
-                                <button type="submit" class="btn btn-sm btn-danger">
-                                    <i class="fa-solid fa-xmark me-1"></i> Cancel
-                                </button>
+                            <form asp-action="CancelInvite" asp-route-id="@item.EmployeeId" method="post" style="display:inline;"
+                                  onsubmit="return confirm('@(item.IsActive ? "Cancel password reset link?" : "Permanently revoke and delete this invitation?")');">
+
+                                @if (item.IsActive)
+                                {
+                                    // button for existing users (cancel reset)
+                                    <button type="submit" class="btn btn-sm btn-warning" title="Cancel Password Reset">
+                                        <i class="fa-solid fa-ban me-1"></i> Cancel Reset
+                                    </button>
+                                }
+                                else
+                                {
+                                    // button for new users (revoke invite)
+                                    <button type="submit" class="btn btn-sm btn-danger" title="Revoke Invitation">
+                                        <i class="fa-solid fa-trash me-1"></i> Revoke Invite
+                                    </button>
+                                }
                             </form>
                         </td>
                     </tr>
                 }
                 @if (!Model.Any())
                 {
-                    <tr><td colspan="5" class="text-center py-4">No pending invitations.</td></tr>
+                    <tr><td colspan="6" class="text-center py-4 text-muted">No pending links found.</td></tr>
                 }
             </tbody>
         </table>

@@ -44,7 +44,7 @@
             <div class="col-auto flex-grow-1">
                 <div class="input-group">
                     <span class="input-group-text bg-light"><i class="fa-solid fa-magnifying-glass"></i></span>
-                    <input type="text" name="searchString" class="form-control" placeholder="Search products..." value="@ViewData["CurrentFilter"]" />
+                    <input type="text" name="searchString" class="form-control" placeholder="Search product, category, or manufacturer..." value="@ViewData["CurrentFilter"]" />
                 </div>
             </div>
             <div class="col-auto">
@@ -62,12 +62,32 @@
         <table class="table table-hover align-middle">
             <thead class="table-light">
                 <tr>
-                    <th><a asp-action="Index" asp-route-sortOrder="@ViewData["NameSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">Product Name <i class="fa-solid fa-sort ms-1 text-muted"></i></a></th>
-                    <th><a asp-action="Index" asp-route-sortOrder="@ViewData["CatSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">Category <i class="fa-solid fa-sort ms-1 text-muted"></i></a></th>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["NameSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                            Product Name <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["CatSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                            Category <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
                     <th>Manufacturer</th>
-                    <th><a asp-action="Index" asp-route-sortOrder="@ViewData["StockSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">Total Stock <i class="fa-solid fa-sort ms-1 text-muted"></i></a></th>
-                    <th><a asp-action="Index" asp-route-sortOrder="@ViewData["PriceSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">SRP (₱) <i class="fa-solid fa-sort ms-1 text-muted"></i></a></th>
-                    <th><a asp-action="Index" asp-route-sortOrder="@ViewData["ExpirySortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">Next Expiry <i class="fa-solid fa-sort ms-1 text-muted"></i></a></th>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["StockSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                            Total Stock <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["PriceSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                            SRP (₱) <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
+                    <th>
+                        <a asp-action="Index" asp-route-sortOrder="@ViewData["ExpirySortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                            Expiration Date <i class="fa-solid fa-sort ms-1 text-muted"></i>
+                        </a>
+                    </th>
                     <th>Status</th>
                     <th>Actions</th>
                 </tr>
@@ -89,22 +109,18 @@
                             }
                             else if (item.Status == "Low Stock")
                             {
-
                                 <span class="badge bg-warning text-dark">Low Stock</span>
                             }
                             else if (item.Status == "Out of Stock")
                             {
-
                                 <span class="badge bg-secondary">Out of Stock</span>
                             }
                             else if (item.Status == "Expired")
                             {
-
                                 <span class="badge bg-danger">Expired</span>
                             }
                             else if (item.Status == "Archived")
                             {
-
                                 <span class="badge bg-dark">Archived</span>
                             }
                         </td>

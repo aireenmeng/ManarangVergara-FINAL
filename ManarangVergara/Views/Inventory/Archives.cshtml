@@ -43,12 +43,30 @@
                         <td class="fw-bold">@item.ProductName</td>
                         <td>@item.CategoryName</td>
                         <td>@item.Quantity</td>
-                        <td class="text-end">
+                        <td class="text-end text-nowrap">
                             <form asp-action="Unarchive" asp-route-id="@item.ProductId" method="post" style="display:inline;">
-                                <button type="submit" class="btn btn-sm btn-success" title="Restore">
-                                    <i class="fa-solid fa-trash-arrow-up me-1"></i> Restore
+                                <button type="submit" class="btn btn-sm btn-success me-1" title="Restore to Active List">
+                                    <i class="fa-solid fa-trash-arrow-up"></i>
                                 </button>
                             </form>
+
+                            @if (item.CanDeletePermanently)
+                            {
+                                // if no sales history, show the delete button
+                                <form asp-action="DeletePermanent" asp-route-id="@item.ProductId" method="post" style="display:inline;"
+                                      onsubmit="return confirm('WARNING: This will permanently delete @item.ProductName from the database.\n\nThis cannot be undone. Are you sure?');">
+                                    <button type="submit" class="btn btn-sm btn-danger" title="Delete Permanently (Mistake Entry)">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                // if sales exist, show a disabled icon explaining why
+                                <button type="button" class="btn btn-sm btn-secondary disabled" title="Cannot Delete: Has Sales History">
+                                    <i class="fa-solid fa-ban"></i>
+                                </button>
+                            }
                         </td>
                     </tr>
                 }

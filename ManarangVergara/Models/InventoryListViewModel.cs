@@ -13,5 +13,6 @@ namespace ManarangVergara.Models
         public DateOnly ExpiryDate { get; set; }
         public string Status { get; set; } = "Active";
         public string BatchNumber { get; set; } = "";
+        public bool CanDeletePermanently { get; set; } // true if no sales/orders exist
     }
 }

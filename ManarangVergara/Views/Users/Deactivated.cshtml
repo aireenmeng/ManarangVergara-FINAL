@@ -1,0 +1,105 @@
+﻿@using ManarangVergara.Helpers
+@model PaginatedList<ManarangVergara.Models.Database.Employee>
+@{
+    ViewData["Title"] = "Deactivated Users";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="text-muted"><i class="fa-solid fa-user-slash me-2"></i>Deactivated Users</h2>
+    <a asp-action="Index" class="btn btn-outline-primary">
+        <i class="fa-solid fa-arrow-left me-2"></i>Back to Active Users
+    </a>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-check-circle me-2"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="card shadow-sm">
+    <div class="card-body table-responsive">
+        <table class="table table-hover align-middle text-muted">
+            <thead class="table-light">
+                <tr>
+                    <th>Username</th>
+                    <th>Full Name</th>
+                    <th>Role</th>
+                    <th>History</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    // Calculate if safe to delete (No sales, no logs)
+                    bool hasHistory = item.Transactions.Any() || item.ItemLogs.Any() || item.Voids.Any();
+
+                    <tr>
+                        <td class="fw-bold">@item.Username</td>
+                        <td>@item.EmployeeName</td>
+                        <td>@item.Position</td>
+                        <td>
+                            @if (hasHistory)
+                            {
+                                <span class="badge bg-secondary">Has Records</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">Clean (Safe to Delete)</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <form asp-action="Restore" asp-route-id="@item.EmployeeId" method="post" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-success me-1" title="Restore / Reactivate">
+                                    <i class="fa-solid fa-trash-arrow-up me-1"></i> Restore
+                                </button>
+                            </form>
+
+                            @if (!hasHistory)
+                            {
+                                <form asp-action="DeletePermanent" asp-route-id="@item.EmployeeId" method="post" style="display:inline;"
+                                      onsubmit="return confirm('PERMANENTLY DELETE this user?\n\nThis action cannot be undone.');">
+                                    <button type="submit" class="btn btn-sm btn-danger" title="Delete Forever (Wrong Entry)">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn btn-sm btn-secondary disabled" title="Cannot Delete: User has history">
+                                    <i class="fa-solid fa-ban"></i>
+                                </button>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Any())
+                {
+                    <tr><td colspan="5" class="text-center py-4">No deactivated users found.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@{
+    var prevDisabled = !Model.HasPreviousPage ? "disabled" : "";
+    var nextDisabled = !Model.HasNextPage ? "disabled" : "";
+}
+<div class="d-flex justify-content-between align-items-center mt-3">
+    <span class="text-muted small">Page @Model.PageIndex of @Model.TotalPages</span>
+    <div>
+        <a asp-action="Deactivated" asp-route-pageNumber="@(Model.PageIndex - 1)" class="btn btn-outline-secondary @prevDisabled">Previous</a>
+        <a asp-action="Deactivated" asp-route-pageNumber="@(Model.PageIndex + 1)" class="btn btn-outline-secondary @nextDisabled">Next</a>
+    </div>
+</div>

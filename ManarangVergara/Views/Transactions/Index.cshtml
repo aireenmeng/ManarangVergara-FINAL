@@ -56,6 +56,12 @@
     </div>
 </div>
 
+<form asp-action="Index" method="get" class="row g-2 mb-3">
+    <div class="col-auto"><label>From:</label><input type="date" name="startDate" value="@ViewData["StartDate"]" class="form-control" /></div>
+    <div class="col-auto"><label>To:</label><input type="date" name="endDate" value="@ViewData["EndDate"]" class="form-control" /></div>
+    <div class="col-auto align-self-end"><button type="submit" class="btn btn-primary">Filter</button></div>
+</form>
+
 <!-- TRANSACTIONS TABLE -->
 <div class="card shadow-sm">
     <div class="card-body table-responsive">

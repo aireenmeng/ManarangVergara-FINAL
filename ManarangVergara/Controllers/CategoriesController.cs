@@ -7,6 +7,11 @@ using ManarangVergara.Helpers;
 
 namespace ManarangVergara.Controllers
 {
+    // ============================================================
+    // CATEGORIES CONTROLLER (master data management)
+    // ============================================================
+    // manages product categories. allows creating, editing, and soft deleting (archiving).
+    // restricted to authorized staff to maintain data integrity.
     [Authorize(Roles = "Admin,Owner,Manager")]
     public class CategoriesController : Controller
     {
@@ -17,8 +22,15 @@ namespace ManarangVergara.Controllers
             _context = context;
         }
 
+        // ============================================================
+        // 1. LIST ACTIVE CATEGORIES (index)
+        // ============================================================
+
+        // get: displays a paginated list of active categories.
+        // supports filtering by name and sorting by various columns.
         public async Task<IActionResult> Index(string sortOrder, string searchString, bool showArchived = false, int? pageNumber = 1)
         {
+            // store current state for pagination links
             ViewData["NameSortParm"] = String.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
             ViewData["CountSortParm"] = sortOrder == "Count" ? "count_desc" : "Count";
             ViewData["CurrentFilter"] = searchString;
@@ -27,22 +39,26 @@ namespace ManarangVergara.Controllers
 
             var query = _context.ProductCategories.AsQueryable();
 
+            // filter logic: only show active categories unless requested otherwise
             if (!showArchived) query = query.Where(c => c.IsActive == true);
 
+            // search logic: filter by category name
             if (!string.IsNullOrEmpty(searchString))
             {
                 query = query.Where(s => s.CategoryName.Contains(searchString));
             }
 
+            // sort logic
             query = sortOrder switch
             {
                 "name_desc" => query.OrderByDescending(c => c.CategoryName),
                 "" => query.OrderBy(c => c.CategoryName),
                 "Count" => query.OrderBy(c => c.Products.Count),
                 "count_desc" => query.OrderByDescending(c => c.Products.Count),
-                _ => query.OrderByDescending(c => c.LastUpdated)
+                _ => query.OrderByDescending(c => c.LastUpdated) // default: recent updates first
             };
 
+            // project data to viewmodel, including product count
             var data = await query
                 .Select(c => new CategoryListViewModel
                 {
@@ -52,11 +68,15 @@ namespace ManarangVergara.Controllers
                 })
                 .ToListAsync();
 
-            // PAGINATION: 10 Items
+            // paginate: 10 items per page
             return View(PaginatedList<CategoryListViewModel>.Create(data.AsQueryable(), pageNumber ?? 1, 10));
         }
 
-        // 1. NEW: Archives Page (Paginated & Sorted)
+        // ============================================================
+        // 2. LIST ARCHIVED CATEGORIES (recycle bin)
+        // ============================================================
+
+        // get: displays categories that have been "soft deleted".
         public async Task<IActionResult> Archives(string sortOrder, string searchString, int? pageNumber = 1)
         {
             ViewData["CurrentFilter"] = searchString;
@@ -65,7 +85,7 @@ namespace ManarangVergara.Controllers
             ViewData["NameSortParm"] = String.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
             ViewData["CountSortParm"] = sortOrder == "Count" ? "count_desc" : "Count";
 
-            // QUERY: Fetch only INACTIVE (Archived) Categories
+            // query: fetch only inactive (archived) categories
             var query = _context.ProductCategories
                 .Where(c => c.IsActive == false)
                 .AsQueryable();
@@ -75,7 +95,7 @@ namespace ManarangVergara.Controllers
                 query = query.Where(c => c.CategoryName.Contains(searchString));
             }
 
-            // Sort Logic
+            // sort logic
             query = sortOrder switch
             {
                 "name_desc" => query.OrderByDescending(c => c.CategoryName),
@@ -90,20 +110,29 @@ namespace ManarangVergara.Controllers
                 {
                     CategoryId = c.CategoryId,
                     CategoryName = c.CategoryName,
-                    ProductCount = c.Products.Count()
+                    ProductCount = c.Products.Count(),
+
+                    // THIS WAS MISSING: Check if 0 products exist
+                    CanDeletePermanently = !c.Products.Any()
                 })
                 .ToListAsync();
 
-            // PAGINATION: 10 Items per page
+            // paginate: 10 items per page
             int pageSize = 10;
             return View(PaginatedList<CategoryListViewModel>.Create(data.AsQueryable(), pageNumber ?? 1, pageSize));
         }
 
+        // ============================================================
+        // 3. CREATE CATEGORY
+        // ============================================================
+
+        // get: show empty form
         public IActionResult Create()
         {
             return View();
         }
 
+        // post: save new category
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(ProductCategory category)
@@ -111,7 +140,7 @@ namespace ManarangVergara.Controllers
             if (ModelState.IsValid)
             {
                 category.IsActive = true;
-                category.LastUpdated = DateTime.Now; // Timestamp
+                category.LastUpdated = DateTime.Now;
 
                 _context.Add(category);
                 await _context.SaveChangesAsync();
@@ -120,6 +149,11 @@ namespace ManarangVergara.Controllers
             return View(category);
         }
 
+        // ============================================================
+        // 4. EDIT CATEGORY
+        // ============================================================
+
+        // get: load category for editing
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null) return NotFound();
@@ -128,6 +162,7 @@ namespace ManarangVergara.Controllers
             return View(category);
         }
 
+        // post: update existing category
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, ProductCategory category)
@@ -136,11 +171,11 @@ namespace ManarangVergara.Controllers
 
             if (ModelState.IsValid)
             {
-                // Preserve IsActive status
+                // preserve isactive status (prevent accidental archiving during edit)
                 var existing = await _context.ProductCategories.AsNoTracking().FirstOrDefaultAsync(c => c.CategoryId == id);
                 if (existing != null) category.IsActive = existing.IsActive;
 
-                category.LastUpdated = DateTime.Now; // Timestamp update
+                category.LastUpdated = DateTime.Now;
 
                 _context.Update(category);
                 await _context.SaveChangesAsync();
@@ -149,7 +184,12 @@ namespace ManarangVergara.Controllers
             return View(category);
         }
 
-        // SOFT DELETE (Archive)
+        // ============================================================
+        // 5. ARCHIVE (soft delete)
+        // ============================================================
+
+        // post: marks category as inactive instead of deleting it.
+        // safer than hard delete because products might still be linked to it.
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
@@ -157,7 +197,7 @@ namespace ManarangVergara.Controllers
             var category = await _context.ProductCategories.FindAsync(id);
             if (category != null)
             {
-                category.IsActive = false; // Soft Delete
+                category.IsActive = false; // soft delete
                 category.LastUpdated = DateTime.Now;
                 _context.Update(category);
                 await _context.SaveChangesAsync();
@@ -166,7 +206,11 @@ namespace ManarangVergara.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // RESTORE (Unarchive)
+        // ============================================================
+        // 6. RESTORE (unarchive)
+        // ============================================================
+
+        // post: reactivates a previously archived category.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Restore(int id)
@@ -174,8 +218,8 @@ namespace ManarangVergara.Controllers
             var category = await _context.ProductCategories.FindAsync(id);
             if (category != null)
             {
-                category.IsActive = true; // Restore
-                category.LastUpdated = DateTime.Now; // Moves to top
+                category.IsActive = true; // restore
+                category.LastUpdated = DateTime.Now; // bumps to top of list
                 _context.Update(category);
                 await _context.SaveChangesAsync();
                 TempData["SuccessMessage"] = "Category restored.";

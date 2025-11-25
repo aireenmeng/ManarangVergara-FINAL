@@ -19,20 +19,19 @@ namespace ManarangVergara.Controllers
         }
 
         // GET: Transactions History
-        public async Task<IActionResult> Index(string searchString, string sortOrder, int? pageNumber = 1)
+        public async Task<IActionResult> Index(string searchString, string sortOrder, DateTime? startDate, DateTime? endDate, int? pageNumber = 1)
         {
-            ViewData["CurrentFilter"] = searchString;
-            ViewData["CurrentSort"] = sortOrder;
+            // DEFAULT: Show Today Only if no date selected
+            if (!startDate.HasValue) startDate = DateTime.Today;
+            if (!endDate.HasValue) endDate = DateTime.Today.AddDays(1).AddTicks(-1); // End of today
 
-            // Sorting Parameters
-            ViewData["DateSortParm"] = String.IsNullOrEmpty(sortOrder) ? "date_desc" : "";
-            ViewData["CashierSortParm"] = sortOrder == "Cashier" ? "cashier_desc" : "Cashier";
-            ViewData["StatusSortParm"] = sortOrder == "Status" ? "status_desc" : "Status";
-            ViewData["TotalSortParm"] = sortOrder == "Total" ? "total_desc" : "Total";
+            ViewData["StartDate"] = startDate?.ToString("yyyy-MM-dd");
+            ViewData["EndDate"] = endDate?.ToString("yyyy-MM-dd");
 
             var query = _context.Transactions
                 .Include(t => t.SalesItems)
                 .Include(t => t.Employee)
+                .Where(t => t.SalesDate >= startDate && t.SalesDate <= endDate) // Filter by Date
                 .AsQueryable();
 
             // Security: Cashiers only see their own sales

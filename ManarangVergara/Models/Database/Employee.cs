@@ -26,4 +26,9 @@ public partial class Employee
     public virtual ICollection<ItemLog> ItemLogs { get; set; } = new List<ItemLog>();
     public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
     public virtual ICollection<Void> Voids { get; set; } = new List<Void>();
+
+    // --- add these new properties for tracking ---
+    public string? TokenPurpose { get; set; } // "Activation" or "Reset"
+    public string? TokenSentBy { get; set; }  // "Admin Juan"
+    public DateTime? TokenSentDate { get; set; }
 }
