@@ -8,12 +8,14 @@ using ManarangVergara.Helpers;
 
 namespace ManarangVergara.Controllers
 {
+    // security: only bosses (admins, owners, managers) can enter this entire section
     [Authorize(Roles = "Admin,Owner,Manager")]
     public class UsersController : Controller
     {
         private readonly PharmacyDbContext _context;
         private readonly IEmailService _emailService;
 
+        // connects the database and email sender tool
         public UsersController(PharmacyDbContext context, IEmailService emailService)
         {
             _context = context;
@@ -23,8 +25,12 @@ namespace ManarangVergara.Controllers
         // ============================================================
         // 1. ACTIVE USERS LIST (Modified)
         // ============================================================
+
+        // MAIN FUNCTION: SHOWS THE LIST OF ACTIVE EMPLOYEES
+        // displays the table of people who are currently working and have accepted their invites
         public async Task<IActionResult> Index(string sortOrder, int? pageNumber = 1)
         {
+            // handles the arrows on the table headers (sort by name, role, etc.)
             ViewData["CurrentSort"] = sortOrder;
             ViewData["UserSortParm"] = String.IsNullOrEmpty(sortOrder) ? "user_desc" : "";
             ViewData["NameSortParm"] = sortOrder == "Name" ? "name_desc" : "Name";
@@ -32,10 +38,12 @@ namespace ManarangVergara.Controllers
             ViewData["ContactSortParm"] = sortOrder == "Contact" ? "contact_desc" : "Contact";
 
             // FILTER: Show ONLY Active Users who are fully registered
+            // "resettoken == null" means they already clicked the link in their email and set a password
             var users = _context.Employees
                 .Where(e => e.ResetToken == null && e.IsActive == true) // <--- CHANGED
                 .AsQueryable();
 
+            // sorts the list based on what header you clicked
             users = sortOrder switch
             {
                 "user_desc" => users.OrderByDescending(e => e.Username),
@@ -48,6 +56,7 @@ namespace ManarangVergara.Controllers
                 _ => users.OrderBy(e => e.Username),
             };
 
+            // pagination: limits list to 10 people per page
             var data = await users.ToListAsync();
             return View(PaginatedList<Employee>.Create(data.AsQueryable(), pageNumber ?? 1, 10));
         }
@@ -55,19 +64,23 @@ namespace ManarangVergara.Controllers
         // ============================================================
         // 2. DEACTIVATED USERS (New Archive Page)
         // ============================================================
+
+        // FUNCTION: SHOWS THE 'TRASH CAN' OR ARCHIVED USERS
+        // these are employees who were fired or quit, but we keep their records for history
         public async Task<IActionResult> Deactivated(string sortOrder, int? pageNumber = 1)
         {
             ViewData["CurrentSort"] = sortOrder;
 
-            // FILTER: Show ONLY Deactivated Users who are fully registered
+            // FILTER: Show ONLY Deactivated Users
+            // we load their transactions and logs so we can see what they did before leaving
             var users = _context.Employees
-                .Include(e => e.Transactions) // Include history to check for delete safety
+                .Include(e => e.Transactions) // include history to check for delete safety
                 .Include(e => e.ItemLogs)
                 .Include(e => e.Voids)
                 .Where(e => e.ResetToken == null && e.IsActive == false)
                 .AsQueryable();
 
-            // Default Sort: Recently Deactivated (or just ID order)
+            // default sort: show the most recently hired people first
             users = users.OrderByDescending(e => e.EmployeeId);
 
             var data = await users.ToListAsync();
@@ -77,10 +90,13 @@ namespace ManarangVergara.Controllers
         // ============================================================
         // 3. PENDING INVITATIONS
         // ============================================================
+
+        // FUNCTION: SHOWS EMAILS SENT BUT NOT YET ACCEPTED
+        // if you invited a new cashier but they haven't set their password yet, they appear here
         public async Task<IActionResult> Pending(int? pageNumber = 1)
         {
             var query = _context.Employees
-                .Where(e => e.ResetToken != null)
+                .Where(e => e.ResetToken != null) // token exists means they haven't finished setup
                 .OrderByDescending(e => e.ResetTokenExpiry);
 
             var list = await query.ToListAsync();
@@ -91,21 +107,24 @@ namespace ManarangVergara.Controllers
         // 4. CREATE / EDIT / DEACTIVATE ACTIONS
         // ============================================================
 
+        // shows the "add employee" form
         [Authorize(Roles = "Admin,Owner")]
         public IActionResult Create() { return View(); }
 
+        // FUNCTION: SAVE NEW EMPLOYEE & SEND EMAIL INVITE
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin,Owner")]
+        [Authorize(Roles = "Admin,Owner")] // managers cannot hire people, only admins/owners
         public async Task<IActionResult> Create(Employee employee)
         {
-            ModelState.Remove("Password");
+            ModelState.Remove("Password"); // we don't set a password here; the user sets it via email
 
             if (!string.IsNullOrEmpty(employee.Username) && employee.Username.Contains(" "))
                 ModelState.AddModelError("Username", "Username cannot contain spaces.");
 
             if (ModelState.IsValid)
             {
+                // hierarchy protection: an admin cannot create an owner account.
                 bool iAmOwner = User.IsInRole("Owner");
                 if ((employee.Position == "Owner" || employee.Position == "Admin") && !iAmOwner)
                 {
@@ -113,6 +132,7 @@ namespace ManarangVergara.Controllers
                     return View(employee);
                 }
 
+                // check if username or email is already taken
                 if (await _context.Employees.AnyAsync(e => e.Username == employee.Username))
                 {
                     ModelState.AddModelError("Username", "Username is already taken.");
@@ -125,19 +145,23 @@ namespace ManarangVergara.Controllers
                     return View(employee);
                 }
 
+                // create a temporary hidden password just to satisfy database rules
                 string tempPassword = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(20));
                 employee.Password = BCrypt.Net.BCrypt.HashPassword(tempPassword);
 
+                // create the secure invitation token
                 string token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(64));
                 employee.ResetToken = token;
-                employee.ResetTokenExpiry = DateTime.UtcNow.AddHours(48);
-                employee.IsActive = false; // Set false so they appear in Pending, not Active
+                employee.ResetTokenExpiry = DateTime.UtcNow.AddHours(48); // link expires in 2 days
+                employee.IsActive = false; // set false so they appear in pending, not active list
 
                 _context.Add(employee);
                 await _context.SaveChangesAsync();
 
+                // generate the email link
                 var resetLink = Url.Action("ResetPassword", "Account", new { token = token }, Request.Scheme);
 
+                // try to send the email
                 try
                 {
                     string emailBody = $@"<h3>Welcome to MedTory!</h3><p>Hello {employee.EmployeeName},</p><p>Please click the link below to set your password:</p><a href='{resetLink}'>Set My Password</a>";
@@ -147,6 +171,7 @@ namespace ManarangVergara.Controllers
                 }
                 catch (Exception ex)
                 {
+                    // if email fails, delete the user we just created so we can try again
                     _context.Employees.Remove(employee);
                     await _context.SaveChangesAsync();
                     TempData["ErrorMessage"] = "Email failed. User not created. Error: " + ex.Message;
@@ -156,6 +181,7 @@ namespace ManarangVergara.Controllers
             return View(employee);
         }
 
+        // FUNCTION: SHOW EDIT FORM
         [Authorize(Roles = "Admin,Owner")]
         public async Task<IActionResult> Edit(int? id)
         {
@@ -163,6 +189,7 @@ namespace ManarangVergara.Controllers
             var employee = await _context.Employees.FindAsync(id);
             if (employee == null) return NotFound();
 
+            // check if i am allowed to edit this person (e.g., admin cannot edit owner)
             if (!CanModifyUser(employee.Position))
             {
                 TempData["ErrorMessage"] = "You do not have permission to edit this user.";
@@ -171,6 +198,7 @@ namespace ManarangVergara.Controllers
             return View(employee);
         }
 
+        // FUNCTION: SAVE EDITS
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,Owner")]
@@ -185,12 +213,14 @@ namespace ManarangVergara.Controllers
                 var existingUser = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.EmployeeId == id);
                 if (existingUser == null) return NotFound();
 
+                // double check permissions before saving
                 if (!CanModifyUser(existingUser.Position))
                 {
                     TempData["ErrorMessage"] = "You do not have permission to edit this user.";
                     return RedirectToAction(nameof(Index));
                 }
 
+                // protect sensitive fields: ensure password and token don't get erased during edit
                 employee.Password = existingUser.Password;
                 employee.ResetToken = existingUser.ResetToken;
                 employee.ResetTokenExpiry = existingUser.ResetTokenExpiry;
@@ -204,7 +234,8 @@ namespace ManarangVergara.Controllers
             return View(employee);
         }
 
-        // ACTION: Deactivate (Moves from Index -> Deactivated)
+        // FUNCTION: DEACTIVATE ("FIRE") AN EMPLOYEE
+        // moves them from the active list to the deactivated/archive list
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,Owner")]
@@ -219,7 +250,7 @@ namespace ManarangVergara.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            user.IsActive = false; // Deactivate
+            user.IsActive = false; // deactivate
             _context.Update(user);
             await _context.SaveChangesAsync();
 
@@ -227,7 +258,8 @@ namespace ManarangVergara.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // ACTION: Restore (Moves from Deactivated -> Index)
+        // FUNCTION: RESTORE AN EMPLOYEE
+        // moves them from the archive back to the active list
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,Owner")]
@@ -236,7 +268,7 @@ namespace ManarangVergara.Controllers
             var user = await _context.Employees.FindAsync(id);
             if (user == null) return NotFound();
 
-            user.IsActive = true; // Reactivate
+            user.IsActive = true; // reactivate
             _context.Update(user);
             await _context.SaveChangesAsync();
 
@@ -244,7 +276,8 @@ namespace ManarangVergara.Controllers
             return RedirectToAction(nameof(Deactivated));
         }
 
-        // ACTION: Permanent Delete (From Deactivated List)
+        // FUNCTION: PERMANENTLY DELETE
+        // actually removes them from database. ONLY allowed if they have no history.
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,Owner")]
@@ -258,7 +291,8 @@ namespace ManarangVergara.Controllers
 
             if (user == null) return NotFound();
 
-            // Safety Check: Do they have history?
+            // SAFETY CHECK: DO THEY HAVE HISTORY?
+            // if this cashier ever sold an item, we CANNOT delete them, because it would break the sales reports.
             bool hasHistory = user.Transactions.Any() || user.ItemLogs.Any() || user.Voids.Any();
 
             if (hasHistory)
@@ -267,6 +301,7 @@ namespace ManarangVergara.Controllers
                 return RedirectToAction(nameof(Deactivated));
             }
 
+            // if they have no history (never did anything), it's safe to delete.
             _context.Employees.Remove(user);
             await _context.SaveChangesAsync();
 
@@ -274,6 +309,8 @@ namespace ManarangVergara.Controllers
             return RedirectToAction(nameof(Deactivated));
         }
 
+        // FUNCTION: CANCEL AN INVITE
+        // used when you invited the wrong email address
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CancelInvite(int id)
@@ -285,12 +322,14 @@ namespace ManarangVergara.Controllers
 
             if (isNewInvite)
             {
+                // if they never logged in, just delete the whole record
                 _context.Employees.Remove(user);
                 await _context.SaveChangesAsync();
                 TempData["SuccessMessage"] = "Invitation revoked. User deleted.";
             }
             else
             {
+                // if it was just a password reset request, just clear the token
                 user.ResetToken = null;
                 user.ResetTokenExpiry = null;
                 _context.Update(user);
@@ -300,6 +339,8 @@ namespace ManarangVergara.Controllers
             return RedirectToAction(nameof(Pending));
         }
 
+        // FUNCTION: MANUALLY SEND PASSWORD RESET
+        // useful if an employee forgot their password and can't find the email link
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SendResetLink(int id)
@@ -313,6 +354,7 @@ namespace ManarangVergara.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            // create a new token and email it
             var token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(64));
             user.ResetToken = token;
             user.ResetTokenExpiry = DateTime.UtcNow.AddHours(24);
@@ -332,12 +374,13 @@ namespace ManarangVergara.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // HELPER: RULES FOR WHO CAN BOSS WHOM
         private bool CanModifyUser(string targetRole)
         {
             var myRole = User.FindFirst(ClaimTypes.Role)?.Value;
-            if (myRole == "Owner") return true;
-            if (myRole == "Admin" && targetRole != "Admin" && targetRole != "Owner") return true;
-            if (myRole == "Manager" && targetRole == "Cashier") return true;
+            if (myRole == "Owner") return true; // owner can edit anyone
+            if (myRole == "Admin" && targetRole != "Admin" && targetRole != "Owner") return true; // admin can edit managers/cashiers
+            if (myRole == "Manager" && targetRole == "Cashier") return true; // manager can only edit cashiers
             return false;
         }
     }
