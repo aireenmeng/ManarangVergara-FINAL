@@ -1,210 +1,280 @@
-﻿@using System.Text.Json
-@model ManarangVergara.Models.ReportViewModel
+﻿@model ManarangVergara.Models.ReportViewModel
 @{
-    ViewData["Title"] = "Business Intelligence";
+    ViewData["Title"] = "Detailed Reports";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4 no-print">
-    <h2 class="fw-bold text-primary"><i class="fa-solid fa-chart-line me-2"></i>Business Reports</h2>
-    <button onclick="window.print()" class="btn btn-dark"><i class="fa-solid fa-print me-2"></i>Print Report</button>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold text-dark mb-0"><i class="fa-solid fa-table me-2"></i>Detailed Reports</h2>
+        <small class="text-muted">Tabular Data & Audit Lists</small>
+    </div>
+    <button onclick="printSection('printableArea')" class="btn btn-dark"><i class="fa-solid fa-print me-2"></i>Print Full Report</button>
 </div>
 
-<div class="card shadow-sm mb-4 no-print">
-    <div class="card-body py-2">
+<div class="card shadow-sm mb-4 border-0 bg-light">
+    <div class="card-body py-3">
         <form asp-action="Index" method="get" class="row g-2 align-items-center">
-            <div class="col-auto"><label class="fw-bold">Report Period:</label></div>
-            <div class="col-auto"><input type="date" name="startDate" class="form-control" value="@Model.StartDate.ToString("yyyy-MM-dd")" /></div>
-            <div class="col-auto">to</div>
-            <div class="col-auto"><input type="date" name="endDate" class="form-control" value="@Model.EndDate.ToString("yyyy-MM-dd")" /></div>
-            <div class="col-auto"><button type="submit" class="btn btn-primary">Update Data</button></div>
+            <div class="col-auto"><label class="fw-bold text-uppercase small">Date Range:</label></div>
+            <div class="col-auto"><input type="date" name="startDate" class="form-control form-control-sm" value="@Model.StartDate.ToString("yyyy-MM-dd")" /></div>
+            <div class="col-auto text-muted">-</div>
+            <div class="col-auto"><input type="date" name="endDate" class="form-control form-control-sm" value="@Model.EndDate.ToString("yyyy-MM-dd")" /></div>
+            <div class="col-auto"><button type="submit" class="btn btn-primary btn-sm px-3">Filter Report</button></div>
         </form>
     </div>
 </div>
 
-<ul class="nav nav-pills mb-3 no-print" id="reportTabs" role="tablist">
-    <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-sales"><i class="fa-solid fa-cash-register me-2"></i>Sales & Revenue</button></li>
-    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-inventory"><i class="fa-solid fa-boxes-stacked me-2"></i>Inventory Health</button></li>
-    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-profit"><i class="fa-solid fa-hand-holding-dollar me-2"></i>Profitability</button></li>
-    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-audit"><i class="fa-solid fa-shield-halved me-2"></i>Security & Audit</button></li>
+<ul class="nav nav-tabs mb-3" id="reportTabs" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-sales">Sales Ledger</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-inventory">Inventory Master</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-profit">Profit Analysis</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-audit">Void/Audit Log</button></li>
 </ul>
 
-<div class="tab-content">
+<div id="printableArea">
 
-    <div class="tab-pane fade show active" id="tab-sales">
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header bg-white fw-bold">Sales by Category</div>
-                    <div class="card-body"><canvas id="categoryChart" style="max-height:250px;"></canvas></div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header bg-white fw-bold">Top 5 Selling Products</div>
-                    <div class="card-body table-responsive">
-                        <table class="table table-sm">
-                            <thead><tr><th>Product</th><th>Sold</th><th class="text-end">Revenue</th></tr></thead>
-                            <tbody>
-                                @foreach (var item in Model.TopSellingProducts.Take(5))
-                                {
-                                    <tr>
-                                        <td>@item.ProductName</td>
-                                        <td class="fw-bold">@item.QuantitySold</td>
-                                        <td class="text-end">₱@item.Revenue.ToString("N2")</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="d-none print-header text-center mb-4">
+        <h1>MedTory Pharmacy Report</h1>
+        <p><strong>Period:</strong> @Model.StartDate.ToString("MMM dd, yyyy") to @Model.EndDate.ToString("MMM dd, yyyy")</p>
+        <hr />
     </div>
 
-    <div class="tab-pane fade" id="tab-inventory">
-        @if (Model.ShowFinancials)
-        {
-            <div class="alert alert-info">
-                <h4 class="alert-heading"><i class="fa-solid fa-warehouse me-2"></i>Total Asset Value: <strong>₱@Model.TotalInventoryValue.ToString("N2")</strong></h4>
-                <p>This represents the total cost of all stock currently sitting on shelves.</p>
-            </div>
-        }
-        else
-        {
-            <div class="alert alert-secondary">
-                <i class="fa-solid fa-lock me-2"></i> Financial asset values are restricted to Admin/Owner.
-            </div>
-        }
-        <div class="card shadow-sm border-danger">
-            <div class="card-header bg-danger text-white">Near Expiry (Next 90 Days)</div>
-            <div class="card-body p-0">
-                <table class="table table-striped mb-0">
-                    <thead><tr><th>Product</th><th>Expiry Date</th><th>Qty</th></tr></thead>
-                    <tbody>
-                        @foreach (var item in Model.NearExpiryItems)
-                        {
+    <div class="tab-content">
+
+        <div class="tab-pane fade show active print-section" id="tab-sales">
+            <h3 class="d-none print-title mt-4">1. Sales Ledger</h3>
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3 d-flex justify-content-between">
+                    <h6 class="fw-bold text-primary m-0">Itemized Sales Transactions</h6>
+                    <span class="badge bg-success fs-6 text-dark border">Total Revenue: ₱@Model.TotalRevenue.ToString("N2")</span>
+                </div>
+                <div class="card-body p-0 table-responsive">
+                    <table class="table table-bordered table-striped table-hover mb-0" style="font-size: 0.9rem;">
+                        <thead class="table-light text-uppercase small">
                             <tr>
-                                <td class="fw-bold">@item.ProductName</td>
-                                <td class="text-danger fw-bold">@item.ExpiryDate.ToString("MMM dd, yyyy")</td>
-                                <td>@item.Quantity</td>
+                                <th>Date/Time</th>
+                                <th>Txn ID</th>
+                                <th>Product Name</th>
+                                <th>Category</th>
+                                <th>Cashier</th>
+                                <th class="text-center">Qty</th>
+                                <th class="text-end">Total</th>
                             </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <div class="tab-pane fade" id="tab-profit">
-
-        @if (Model.ShowFinancials)
-        {
-            <div class="card shadow-sm mb-3">
-                <div class="card-body text-center bg-success text-white rounded">
-                    <h3>Gross Profit: ₱@Model.GrossProfit.ToString("N2")</h3>
-                    <small>Total Revenue - Total Estimated Cost</small>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.DetailedSales)
+                            {
+                                <tr>
+                                    <td class="text-nowrap">@item.Date.ToString("yyyy-MM-dd HH:mm")</td>
+                                    <td><span class="font-monospace text-muted">#@item.TransactionId</span></td>
+                                    <td class="fw-bold">@item.ProductName</td>
+                                    <td>@item.Category</td>
+                                    <td>@item.Cashier</td>
+                                    <td class="text-center">@item.Qty</td>
+                                    <td class="text-end fw-bold">₱@item.Total.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        }
+        </div>
 
-        <div class="card shadow-sm">
-            <div class="card-header fw-bold">Product Performance</div> <div class="card-body table-responsive p-0">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Product</th>
-                            <th class="text-end">Revenue</th>
-
-                            @if (Model.ShowFinancials)
-                            {
-                                <th class="text-end">Cost</th>
-                                <th class="text-end">Profit</th>
-                                <th>Margin</th>
-                            }
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var item in Model.ProductProfitability)
-                        {
+        <div class="tab-pane fade print-section" id="tab-inventory">
+            <h3 class="d-none print-title mt-4">2. Inventory Master List</h3>
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3">
+                    <h6 class="fw-bold text-primary m-0">Current Stock Status</h6>
+                </div>
+                <div class="card-body p-0 table-responsive">
+                    <table class="table table-bordered table-hover mb-0" style="font-size: 0.9rem;">
+                        <thead class="table-light text-uppercase small">
                             <tr>
-                                <td>@item.ProductName</td>
-                                <td class="text-end">₱@item.Revenue.ToString("N2")</td>
+                                <th style="width: 5%;">Status</th>
+                                <th>Product Name</th>
+                                <th>Batch #</th>
+                                <th>Expiry Date</th>
+                                <th>Days Left</th>
+                                <th class="text-center">Qty</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.FullInventory)
+                            {
+                                string colorClass = item.Status == "Expired" ? "text-danger" : (item.Status == "Low Stock" ? "text-warning" : "text-success");
+                                <tr>
+                                    <td class="text-center align-middle" style="font-size: 1.2rem;">
+                                        <i class="fa-solid fa-circle @colorClass" title="@item.Status"></i>
+                                    </td>
+                                    <td class="align-middle fw-bold">@item.ProductName</td>
+                                    <td class="align-middle font-monospace text-muted">@item.BatchNo</td>
+                                    <td class="align-middle">@item.ExpiryDate.ToString("MMM dd, yyyy")</td>
+                                    <td class="align-middle @(item.DaysUntilExpiry < 30 ? "text-danger fw-bold" : "")">
+                                        @item.DaysUntilExpiry Days
+                                    </td>
+                                    <td class="align-middle text-center fw-bold">@item.Quantity</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
+        <div class="tab-pane fade print-section" id="tab-profit">
+            <h3 class="d-none print-title mt-4">3. Profitability Analysis</h3>
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3">
+                    <h6 class="fw-bold text-primary m-0">Profit & Margin Analysis</h6>
+                </div>
+                <div class="card-body p-0 table-responsive">
+                    <table class="table table-bordered table-striped table-hover mb-0">
+                        <thead class="table-light text-uppercase small">
+                            <tr>
+                                <th>Product Name</th>
+                                <th class="text-center">Qty Sold</th>
+                                <th class="text-end">Total Revenue</th>
                                 @if (Model.ShowFinancials)
                                 {
-                                    <td class="text-end text-muted">₱@item.Cost.ToString("N2")</td>
-                                    <td class="text-end fw-bold text-success">₱@item.Profit.ToString("N2")</td>
-                                    <td><span class="badge bg-secondary">@item.MarginPercent.ToString("N0")%</span></td>
+                                    <th class="text-end">Est. Cost</th>
+                                    <th class="text-end">Net Profit</th>
+                                    <th class="text-center">Margin %</th>
                                 }
                             </tr>
-                        }
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.ProductProfitability)
+                            {
+                                <tr>
+                                    <td>@item.ProductName</td>
+                                    <td class="text-center">@item.QtySold</td>
+                                    <td class="text-end">₱@item.Revenue.ToString("N2")</td>
+                                    @if (Model.ShowFinancials)
+                                    {
+                                        <td class="text-end text-muted">₱@item.Cost.ToString("N2")</td>
+                                        <td class="text-end fw-bold text-success">₱@item.Profit.ToString("N2")</td>
+                                        <td class="text-center">
+                                            <span class="badge bg-light text-dark border">@item.MarginPercent.ToString("N0")%</span>
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="tab-pane fade" id="tab-audit">
-        <div class="card shadow-sm">
-            <div class="card-header bg-warning text-dark">Void Log (Selected Period)</div>
-            <div class="card-body table-responsive p-0">
-                <table class="table table-hover mb-0">
-                    <thead><tr><th>Date</th><th>Cashier</th><th>Auth By</th><th>Amount</th><th>Reason</th></tr></thead>
-                    <tbody>
-                        @foreach (var item in Model.RecentVoids)
-                        {
+        <div class="tab-pane fade print-section" id="tab-audit">
+            <h3 class="d-none print-title mt-4">4. Security & Void Log</h3>
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-danger text-white py-3">
+                    <h6 class="fw-bold m-0"><i class="fa-solid fa-shield-halved me-2"></i>Security Audit</h6>
+                </div>
+                <div class="card-body p-0 table-responsive">
+                    <table class="table table-bordered table-hover mb-0">
+                        <thead class="table-light text-uppercase small">
                             <tr>
-                                <td>@item.VoidDate.ToString("MM/dd HH:mm")</td>
-                                <td>@item.CashierName</td>
-                                <td class="fw-bold">@item.ManagerName</td>
-                                <td class="text-decoration-line-through">₱@item.TotalAmount.ToString("N2")</td>
-                                <td class="text-danger">@item.Reason</td>
+                                <th>Date</th>
+                                <th>Txn ID</th>
+                                <th>Cashier</th>
+                                <th>Authorized By</th>
+                                <th>Reason</th>
+                                <th class="text-end">Amount</th>
                             </tr>
-                        }
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.VoidLogs)
+                            {
+                                <tr>
+                                    <td>@item.VoidDate.ToString("yyyy-MM-dd HH:mm")</td>
+                                    <td><span class="font-monospace">#@item.TransactionId</span></td>
+                                    <td>@item.CashierName</td>
+                                    <td class="fw-bold text-danger">@item.ManagerName</td>
+                                    <td>@item.Reason</td>
+                                    <td class="text-end text-muted text-decoration-line-through">₱@item.TotalAmount.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
-    </div>
-</div>
 
-<div class="print-only mt-5">
-    <p>Generated By: <strong>@Model.GeneratedBy</strong> | Date: @Model.GeneratedAt.ToString("F")</p>
+    </div>
+
+    <div class="d-none print-footer text-center text-muted small mt-4">
+        <hr />
+        <p>Generated By: @Model.GeneratedBy | @Model.GeneratedAt.ToString("F")</p>
+    </div>
 </div>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // Visualize Sales by Category
-        var ctx = document.getElementById('categoryChart').getContext('2d');
-        var catNames = @Html.Raw(JsonSerializer.Serialize(Model.SalesByCategory.Select(x => x.Category)));
-        var catValues = @Html.Raw(JsonSerializer.Serialize(Model.SalesByCategory.Select(x => x.TotalSales)));
+        function printSection(divId) {
+            var printContents = document.getElementById(divId).innerHTML;
+            var originalContents = document.body.innerHTML;
 
-        new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: catNames,
-                datasets: [{ data: catValues, backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'] }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
+            document.body.innerHTML = printContents;
+
+            // Force visibility for printing
+            var headers = document.querySelectorAll('.print-header, .print-title, .print-footer');
+            headers.forEach(h => { h.className = h.className.replace("d-none", "d-block"); });
+
+            var tabs = document.querySelectorAll('.tab-pane');
+            tabs.forEach(t => {
+                t.style.display = "block";
+                t.style.opacity = "1";
+                t.classList.add("show", "active");
+            });
+
+            window.print();
+            window.location.reload();
+        }
     </script>
-    <style>
-        @@media print {
-            .no-print {
-                display: none !important;
-            }
 
-            .tab-pane {
-                display: block !important;
-                opacity: 1 !important;
-            }
-            /* Show ALL tabs when printing */
-            .card {
-                border: 1px solid #ccc;
-                margin-bottom: 20px;
-                page-break-inside: avoid;
-            }
+    <style>
+        .fa-circle {
+            font-size: 0.8em;
+        }
+
+        media print {
+            /* FORCE PAGE BREAKS */
+            .print-section
+
+        {
+            page-break-before: always !important; /* Legacy support */
+            break-before: page !important; /* Modern support */
+            display: block !important;
+            position: relative !important;
+            margin-top: 0 !important;
+        }
+
+        /* Prevent the first page from being blank */
+        .print-section:first-of-type {
+            page-break-before: auto !important;
+            break-before: auto !important;
+        }
+
+        /* Ensure table rows don't break awkwardly */
+        tr {
+            page-break-inside: avoid;
+        }
+
+        .card {
+            border: 1px solid #000 !important;
+            box-shadow: none !important;
+        }
+
+        .badge {
+            border: 1px solid #000;
+            color: #000 !important;
+        }
+
+        a {
+            text-decoration: none;
+            color: black;
+        }
+
         }
     </style>
 }
