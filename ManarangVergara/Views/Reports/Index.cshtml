@@ -8,7 +8,10 @@
         <h2 class="fw-bold text-dark mb-0"><i class="fa-solid fa-table me-2"></i>Detailed Reports</h2>
         <small class="text-muted">Tabular Data & Audit Lists</small>
     </div>
-    <button onclick="printSection('printableArea')" class="btn btn-dark"><i class="fa-solid fa-print me-2"></i>Print Full Report</button>
+    <div class="d-flex gap-2">
+        <button type="button" onclick="exportAllToExcel()" class="btn btn-success"><i class="fa-solid fa-file-excel me-2"></i>Export Full Excel</button>
+        <button type="button" onclick="printSection('printableArea')" class="btn btn-dark"><i class="fa-solid fa-print me-2"></i>Print Full Report</button>
+    </div>
 </div>
 
 <div class="card shadow-sm mb-4 border-0 bg-light">
@@ -24,10 +27,10 @@
 </div>
 
 <ul class="nav nav-tabs mb-3" id="reportTabs" role="tablist">
-    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-sales">Sales Ledger</button></li>
-    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-inventory">Inventory Master</button></li>
-    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-profit">Profit Analysis</button></li>
-    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-audit">Void/Audit Log</button></li>
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-sales" onclick="setActiveTable('table-sales')">Sales Ledger</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-inventory" onclick="setActiveTable('table-inventory')">Inventory Master</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-profit" onclick="setActiveTable('table-profit')">Profit Analysis</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-audit" onclick="setActiveTable('table-audit')">Void/Audit Log</button></li>
 </ul>
 
 <div id="printableArea">
@@ -48,7 +51,7 @@
                     <span class="badge bg-success fs-6 text-dark border">Total Revenue: ₱@Model.TotalRevenue.ToString("N2")</span>
                 </div>
                 <div class="card-body p-0 table-responsive">
-                    <table class="table table-bordered table-striped table-hover mb-0" style="font-size: 0.9rem;">
+                    <table class="table table-bordered table-striped table-hover mb-0" id="table-sales">
                         <thead class="table-light text-uppercase small">
                             <tr>
                                 <th>Date/Time</th>
@@ -60,7 +63,7 @@
                                 <th class="text-end">Total</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="paginated-body">
                             @foreach (var item in Model.DetailedSales)
                             {
                                 <tr>
@@ -75,6 +78,11 @@
                             }
                         </tbody>
                     </table>
+                    <div class="p-2 d-flex justify-content-center bg-light pagination-controls" data-target="table-sales">
+                        <button type="button" class="btn btn-sm btn-outline-secondary me-2" onclick="changePage('table-sales', -1)">Prev</button>
+                        <span class="align-self-center small fw-bold">Page <span class="current-page">1</span></span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="changePage('table-sales', 1)">Next</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -86,7 +94,7 @@
                     <h6 class="fw-bold text-primary m-0">Current Stock Status</h6>
                 </div>
                 <div class="card-body p-0 table-responsive">
-                    <table class="table table-bordered table-hover mb-0" style="font-size: 0.9rem;">
+                    <table class="table table-bordered table-hover mb-0" id="table-inventory">
                         <thead class="table-light text-uppercase small">
                             <tr>
                                 <th style="width: 5%;">Status</th>
@@ -97,13 +105,14 @@
                                 <th class="text-center">Qty</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="paginated-body">
                             @foreach (var item in Model.FullInventory)
                             {
                                 string colorClass = item.Status == "Expired" ? "text-danger" : (item.Status == "Low Stock" ? "text-warning" : "text-success");
                                 <tr>
                                     <td class="text-center align-middle" style="font-size: 1.2rem;">
-                                        <i class="fa-solid fa-circle @colorClass" title="@item.Status"></i>
+                                        <span class="d-none d-print-block" style="font-size:10px;">@item.Status</span>
+                                        <i class="fa-solid fa-circle @colorClass d-print-none" title="@item.Status"></i>
                                     </td>
                                     <td class="align-middle fw-bold">@item.ProductName</td>
                                     <td class="align-middle font-monospace text-muted">@item.BatchNo</td>
@@ -116,6 +125,11 @@
                             }
                         </tbody>
                     </table>
+                    <div class="p-2 d-flex justify-content-center bg-light pagination-controls" data-target="table-inventory">
+                        <button type="button" class="btn btn-sm btn-outline-secondary me-2" onclick="changePage('table-inventory', -1)">Prev</button>
+                        <span class="align-self-center small fw-bold">Page <span class="current-page">1</span></span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="changePage('table-inventory', 1)">Next</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -127,7 +141,7 @@
                     <h6 class="fw-bold text-primary m-0">Profit & Margin Analysis</h6>
                 </div>
                 <div class="card-body p-0 table-responsive">
-                    <table class="table table-bordered table-striped table-hover mb-0">
+                    <table class="table table-bordered table-striped table-hover mb-0" id="table-profit">
                         <thead class="table-light text-uppercase small">
                             <tr>
                                 <th>Product Name</th>
@@ -141,7 +155,7 @@
                                 }
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="paginated-body">
                             @foreach (var item in Model.ProductProfitability)
                             {
                                 <tr>
@@ -160,6 +174,11 @@
                             }
                         </tbody>
                     </table>
+                    <div class="p-2 d-flex justify-content-center bg-light pagination-controls" data-target="table-profit">
+                        <button type="button" class="btn btn-sm btn-outline-secondary me-2" onclick="changePage('table-profit', -1)">Prev</button>
+                        <span class="align-self-center small fw-bold">Page <span class="current-page">1</span></span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="changePage('table-profit', 1)">Next</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -171,7 +190,7 @@
                     <h6 class="fw-bold m-0"><i class="fa-solid fa-shield-halved me-2"></i>Security Audit</h6>
                 </div>
                 <div class="card-body p-0 table-responsive">
-                    <table class="table table-bordered table-hover mb-0">
+                    <table class="table table-bordered table-hover mb-0" id="table-audit">
                         <thead class="table-light text-uppercase small">
                             <tr>
                                 <th>Date</th>
@@ -182,7 +201,7 @@
                                 <th class="text-end">Amount</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="paginated-body">
                             @foreach (var item in Model.VoidLogs)
                             {
                                 <tr>
@@ -196,6 +215,11 @@
                             }
                         </tbody>
                     </table>
+                    <div class="p-2 d-flex justify-content-center bg-light pagination-controls" data-target="table-audit">
+                        <button type="button" class="btn btn-sm btn-outline-secondary me-2" onclick="changePage('table-audit', -1)">Prev</button>
+                        <span class="align-self-center small fw-bold">Page <span class="current-page">1</span></span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="changePage('table-audit', 1)">Next</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -208,73 +232,189 @@
     </div>
 </div>
 
-@section Scripts {
-    <script>
-        function printSection(divId) {
-            var printContents = document.getElementById(divId).innerHTML;
-            var originalContents = document.body.innerHTML;
+<style>
+    .fa-circle { font-size: 0.8em; }
 
-            document.body.innerHTML = printContents;
-
-            // Force visibility for printing
-            var headers = document.querySelectorAll('.print-header, .print-title, .print-footer');
-            headers.forEach(h => { h.className = h.className.replace("d-none", "d-block"); });
-
-            var tabs = document.querySelectorAll('.tab-pane');
-            tabs.forEach(t => {
-                t.style.display = "block";
-                t.style.opacity = "1";
-                t.classList.add("show", "active");
-            });
-
-            window.print();
-            window.location.reload();
-        }
-    </script>
-
-    <style>
-        .fa-circle {
-            font-size: 0.8em;
-        }
-
-        media print {
-            /* FORCE PAGE BREAKS */
-            .print-section
-
-        {
-            page-break-before: always !important; /* Legacy support */
-            break-before: page !important; /* Modern support */
+    /* Double @@ is required for Razor Views to render a single  in CSS media queries */
+    @@media print {
+        .print-section {
+            page-break-before: always !important; 
+            break-before: page !important;        
             display: block !important;
             position: relative !important;
             margin-top: 0 !important;
         }
-
-        /* Prevent the first page from being blank */
         .print-section:first-of-type {
             page-break-before: auto !important;
             break-before: auto !important;
         }
+        tr { page-break-inside: avoid; }
+        .card { border: 1px solid #000 !important; box-shadow: none !important; }
+        .badge { border: 1px solid #000; color: #000 !important; }
+        a { text-decoration: none; color: black; }
+        .pagination-controls, .d-print-none { display: none !important; }
+        .d-none { display: block !important; } /* Force hidden print headers to show */
+    }
+</style>
 
-        /* Ensure table rows don't break awkwardly */
-        tr {
-            page-break-inside: avoid;
+@section Scripts {
+    <script>
+        console.log("Reports Page Loaded");
+
+        const rowsPerPage = 10;
+        let activeTableId = 'table-sales';
+
+        // --- PAGINATION LOGIC ---
+        function setActiveTable(id) { activeTableId = id; }
+
+        function initPagination() {
+            var tables = ['table-sales', 'table-inventory', 'table-profit', 'table-audit'];
+            for (var i = 0; i < tables.length; i++) {
+                renderPage(tables[i], 1);
+            }
+            console.log("Pagination Initialized");
         }
 
-        .card {
-            border: 1px solid #000 !important;
-            box-shadow: none !important;
+        function renderPage(tableId, page) {
+            const table = document.getElementById(tableId);
+            if (!table) return;
+            const tbody = table.querySelector('.paginated-body');
+            if (!tbody) return;
+            const rows = tbody.querySelectorAll('tr');
+            const totalPages = Math.ceil(rows.length / rowsPerPage);
+
+            if (page < 1) page = 1;
+            if (page > totalPages && totalPages > 0) page = totalPages;
+
+            table.dataset.currentPage = page;
+
+            rows.forEach((row, index) => {
+                if (index >= (page - 1) * rowsPerPage && index < page * rowsPerPage) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            const controls = document.querySelector('.pagination-controls[data-target="' + tableId + '"]');
+            if (controls) {
+                const pageSpan = controls.querySelector('.current-page');
+                if(pageSpan) pageSpan.innerText = page + " / " + (totalPages || 1);
+            }
         }
 
-        .badge {
-            border: 1px solid #000;
-            color: #000 !important;
+        function changePage(tableId, delta) {
+            const table = document.getElementById(tableId);
+            let current = parseInt(table.dataset.currentPage || 1);
+            renderPage(tableId, current + delta);
         }
 
-        a {
-            text-decoration: none;
-            color: black;
+        // --- EXPORT TO EXCEL ---
+        function exportAllToExcel() {
+            try {
+                console.log("Exporting...");
+                
+                // 1. Unhide all rows specifically for the export
+                const allRows = document.querySelectorAll('.paginated-body tr');
+                allRows.forEach(function(r) { r.style.display = ''; });
+
+                // 2. Build HTML - WE BREAK THE STRINGS APART HERE TO FIX THE ERROR
+                // By doing '<' + 'html', Razor won't try to parse it as code.
+                var openHtml = '<' + 'html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+                var head = '<' + 'head><meta charset="utf-8">';
+                var style = '<' + 'style>table { border-collapse: collapse; width: 100%; } td, th { border: 1px solid #000; padding: 5px; text-align: left; } th { background-color: #f2f2f2; } .d-none { display: block !important; } .pagination-controls { display: none; }</' + 'style>';
+                var closeHead = '<' + '/head><' + 'body>';
+                
+                let excelHtml = openHtml + head + style + closeHead;
+                
+                // Header Info
+                excelHtml += '<h1>MedTory Detailed Report</h1>';
+                excelHtml += '<p>Generated: ' + new Date().toLocaleString() + '</p><hr/>';
+
+                const tables = [
+                    { id: 'table-sales', title: 'Sales Ledger' },
+                    { id: 'table-inventory', title: 'Inventory Master' },
+                    { id: 'table-profit', title: 'Profitability Analysis' },
+                    { id: 'table-audit', title: 'Void & Security Log' }
+                ];
+
+                tables.forEach(function(t) {
+                    const el = document.getElementById(t.id);
+                    if (el) {
+                        // Clone the table
+                        let clone = el.cloneNode(true);
+                        
+                        // Add title
+                        excelHtml += '<h2>' + t.title + '</h2>';
+                        excelHtml += clone.outerHTML;
+                        excelHtml += '<br><br>';
+                    }
+                });
+
+                excelHtml += '<' + '/body><' + '/html>';
+
+                // 3. Create Blob
+                const blob = new Blob(["\ufeff", excelHtml], { type: "application/vnd.ms-excel;charset=utf-8" });
+                
+                // 4. Download
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = "MedTory_Full_Report_" + new Date().toISOString().slice(0, 10) + ".xls";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // 5. Restore Pagination (Hide rows again)
+                initPagination();
+
+            } catch (e) {
+                console.error(e);
+                alert("Export Error: " + e.message);
+                initPagination();
+            }
         }
 
+        // --- PRINT FUNCTION ---
+        function printSection(divId) {
+            try {
+                // Unhide all rows so they print
+                document.querySelectorAll('.paginated-body tr').forEach(function(r) { r.style.display = ''; });
+                document.querySelectorAll('.pagination-controls').forEach(function(c) { c.style.display = 'none'; });
+
+                var printContents = document.getElementById(divId).innerHTML;
+                
+                // Replace body with only the report
+                document.body.innerHTML = printContents;
+
+                // Force Headers visible
+                var headers = document.querySelectorAll('.print-header, .print-title, .print-footer');
+                headers.forEach(function(h) { h.className = h.className.replace("d-none", "d-block"); });
+
+                // Force Tabs visible
+                var tabs = document.querySelectorAll('.tab-pane');
+                tabs.forEach(function(t) { 
+                    t.style.display = "block"; 
+                    t.style.opacity = "1";
+                    t.classList.add("show", "active");
+                });
+
+                // Print and Reload
+                setTimeout(function() {
+                    window.print();
+                    window.location.reload();
+                }, 500);
+                
+            } catch (e) {
+                console.error(e);
+                alert("Print Error: " + e.message);
+                window.location.reload();
+            }
         }
-    </style>
+
+        // Initialize on Load
+        document.addEventListener("DOMContentLoaded", function() {
+            initPagination();
+        });
+    </script>
 }
