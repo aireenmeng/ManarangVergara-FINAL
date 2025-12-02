@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations; // <--- ADD THIS NAMESPACE
+using System.ComponentModel.DataAnnotations;
 
 namespace ManarangVergara.Models.Database;
 
@@ -22,17 +22,21 @@ public partial class Employee
     [EmailAddress(ErrorMessage = "Invalid Email Format.")]
     public string ContactInfo { get; set; } = null!; // used for sending password reset links
 
-    // --- ADD THIS ---
+
+
     // THE "SOFT DELETE" SWITCH
     // if true = they can log in. 
     // if false = they are fired/deactivated. we use this instead of deleting them so we keep their sales history.
     public bool IsActive { get; set; } = true;
-    // ----------------
+
+
 
     // SECURITY TOKENS:
     // these store the long, random code that goes into the "click here to reset password" email link.
     public string? ResetToken { get; set; }
     public DateTime? ResetTokenExpiry { get; set; } // ensures the link dies after 24-48 hours
+
+
 
     // RELATIONSHIPS (LINKS TO OTHER TABLES):
     // these are lists connecting this employee to other parts of the database.
@@ -41,7 +45,8 @@ public partial class Employee
     public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
     public virtual ICollection<Void> Voids { get; set; } = new List<Void>();
 
-    // --- add these new properties for tracking ---
+
+
     // extra details so we know why an email was sent to them
     public string? TokenPurpose { get; set; } // was it for "Activation" (new hire) or "Reset" (forgot password)?
     public string? TokenSentBy { get; set; }  // remembers which admin sent the invite

@@ -4,7 +4,7 @@
     {
         public int CategoryId { get; set; }
         public string CategoryName { get; set; } = "";
-        public int ProductCount { get; set; } // New: Stores how many products are in this category
+        public int ProductCount { get; set; } 
         public bool CanDeletePermanently { get; set; }
     }
 }

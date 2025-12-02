@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using ManarangVergara.Models;
 using ManarangVergara.Models.Database;
-using ManarangVergara.Services; // required for sending emails
+using ManarangVergara.Services; 
 
 namespace ManarangVergara.Controllers
 {
@@ -186,22 +186,41 @@ namespace ManarangVergara.Controllers
             return View();
         }
 
-        // post: saves the new password.
-        // MAIN FUNCTION: SAVE THE NEW PASSWORD
+        // POST: /Account/ResetPassword
         [HttpPost]
-        public async Task<IActionResult> ResetPassword(string token, string newPassword)
+        public async Task<IActionResult> ResetPassword(string token, string newPassword, string confirmPassword)
         {
-            // double check the token is still valid
-            var user = await _context.Employees.FirstOrDefaultAsync(e => e.ResetToken == token && e.ResetTokenExpiry > DateTime.UtcNow);
-            if (user == null) return RedirectToAction("Login");
+            // 1. SECURITY CHECK: Do passwords match?
+            if (newPassword != confirmPassword)
+            {
+                // Re-fetch user to populate the UI (Email address display)
+                var pendingUser = await _context.Employees
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => e.ResetToken == token);
 
-            // scramble (encrypt) the new password before saving it
+                ViewBag.Token = token;
+                ViewBag.Email = pendingUser?.ContactInfo ?? "Unknown"; // Prevent crash if user not found
+
+                ModelState.AddModelError("", "Passwords do not match. Please try again.");
+                return View();
+            }
+
+            // 2. TOKEN CHECK: Is the link valid?
+            var user = await _context.Employees
+                .FirstOrDefaultAsync(e => e.ResetToken == token && e.ResetTokenExpiry > DateTime.UtcNow);
+
+            if (user == null)
+            {
+                return RedirectToAction("Login");
+            }
+
+            // 3. SAVE NEW PASSWORD
             user.Password = BCrypt.Net.BCrypt.HashPassword(newPassword);
 
-            // clear the token so this link cannot be used a second time
+            // Clear the token so it cannot be used again
             user.ResetToken = null;
             user.ResetTokenExpiry = null;
-            user.IsActive = true;
+            user.IsActive = true; // Activate user if this was their first login
 
             _context.Update(user);
             await _context.SaveChangesAsync();

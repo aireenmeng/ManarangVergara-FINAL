@@ -235,7 +235,6 @@
 <style>
     .fa-circle { font-size: 0.8em; }
 
-    /* Double @@ is required for Razor Views to render a single  in CSS media queries */
     @@media print {
         .print-section {
             page-break-before: always !important; 
@@ -253,7 +252,7 @@
         .badge { border: 1px solid #000; color: #000 !important; }
         a { text-decoration: none; color: black; }
         .pagination-controls, .d-print-none { display: none !important; }
-        .d-none { display: block !important; } /* Force hidden print headers to show */
+        .d-none { display: block !important; } 
     }
 </style>
 
@@ -264,7 +263,7 @@
         const rowsPerPage = 10;
         let activeTableId = 'table-sales';
 
-        // --- PAGINATION LOGIC ---
+        // --- PAGINATION  ---
         function setActiveTable(id) { activeTableId = id; }
 
         function initPagination() {
@@ -314,12 +313,11 @@
             try {
                 console.log("Exporting...");
                 
-                // 1. Unhide all rows specifically for the export
+                
                 const allRows = document.querySelectorAll('.paginated-body tr');
                 allRows.forEach(function(r) { r.style.display = ''; });
 
-                // 2. Build HTML - WE BREAK THE STRINGS APART HERE TO FIX THE ERROR
-                // By doing '<' + 'html', Razor won't try to parse it as code.
+   
                 var openHtml = '<' + 'html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
                 var head = '<' + 'head><meta charset="utf-8">';
                 var style = '<' + 'style>table { border-collapse: collapse; width: 100%; } td, th { border: 1px solid #000; padding: 5px; text-align: left; } th { background-color: #f2f2f2; } .d-none { display: block !important; } .pagination-controls { display: none; }</' + 'style>';

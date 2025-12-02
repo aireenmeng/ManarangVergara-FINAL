@@ -5,7 +5,7 @@
         public int SupplierId { get; set; }
         public string Name { get; set; } = "";
         public string ContactInfo { get; set; } = "";
-        public int ProductCount { get; set; } // How many products we get from them
+        public int ProductCount { get; set; } // how many products we get from them
         public bool CanDeletePermanently { get; set; } // true if no sales/orders exist
     }
 }

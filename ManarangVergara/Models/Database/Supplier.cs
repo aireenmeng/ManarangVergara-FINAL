@@ -17,7 +17,8 @@ public partial class Supplier
     // the "?" means this can be left blank if you don't have it yet.
     public string? ContactInfo { get; set; }
 
-    // --- NEW COLUMNS ---
+
+
     // SOFT DELETE SWITCH:
     // if true = this supplier shows up in the "order stock" dropdown.
     // if false = you stopped doing business with them, but we keep their record for history.
@@ -25,7 +26,8 @@ public partial class Supplier
 
     // timestamp: remembers the last time you updated their phone number or status.
     public DateTime? LastUpdated { get; set; }
-    // -------------------
+
+
 
     // CONNECTOR:
     // a list of all the different medicines this specific supplier sells to us.

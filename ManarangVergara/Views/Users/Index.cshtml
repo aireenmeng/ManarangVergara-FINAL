@@ -77,13 +77,21 @@
                             @{
                                 // SECURITY LOGIC FOR UI
                                 bool isManager = User.IsInRole("Manager");
-                                // Managers can only touch Cashiers. They cannot touch Admin, Owner, or OTHER Managers.
+                                bool isMe = item.Username == User.Identity.Name; // CHECK: Is this my row?
+
+                                // 1. Base Rule: Managers can only touch Cashiers
                                 bool canModify = !isManager || item.Position == "Cashier";
 
-                                // Admins can touch everyone except Owner and other Admins
-                                if (User.IsInRole("Admin") && (item.Position == "Admin" || item.Position == "Owner")) { canModify = false; }
+                                // 2. Admin Rule: Admins cannot touch other Admins or Owners
+                                if (User.IsInRole("Admin") && (item.Position == "Admin" || item.Position == "Owner"))
+                                {
+                                    canModify = false;
+                                }
 
-                                // Owner can do anything
+                                // 3. EXCEPTION: Always allow editing yourself (Self-Service)
+                                if (isMe) { canModify = true; }
+
+                                // 4. Owner Rule: Can do anything
                                 if (User.IsInRole("Owner")) { canModify = true; }
                             }
 

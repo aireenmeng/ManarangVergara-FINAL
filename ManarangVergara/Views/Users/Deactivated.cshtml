@@ -41,7 +41,6 @@
             <tbody>
                 @foreach (var item in Model)
                 {
-                    // Calculate if safe to delete (No sales, no logs)
                     bool hasHistory = item.Transactions.Any() || item.ItemLogs.Any() || item.Voids.Any();
 
                     <tr>

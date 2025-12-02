@@ -14,7 +14,8 @@ public partial class ProductCategory
     // the actual name displayed to the user (e.g., "baby care" or "pain killers").
     public string CategoryName { get; set; } = null!;
 
-    // --- NEW COLUMNS ---
+
+
     // SOFT DELETE SWITCH:
     // if true = this category shows up in the dropdown list when adding new products.
     // if false = it's hidden/deleted, but we keep the record so old sales data doesn't break.
@@ -22,7 +23,8 @@ public partial class ProductCategory
 
     // timestamp: remembers the last time someone changed the name or status of this category.
     public DateTime? LastUpdated { get; set; }
-    // -------------------
+
+
 
     // CONNECTOR:
     // this creates a list of all products that belong to this specific category.

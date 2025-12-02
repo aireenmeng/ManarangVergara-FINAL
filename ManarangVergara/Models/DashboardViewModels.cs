@@ -13,7 +13,8 @@
         public List<ProactiveAlertVM> ProactiveAlerts { get; set; } = new();
         public List<TransactionPreviewVM> RecentTransactions { get; set; } = new();
 
-        // --- NEW: CHART DATA ---
+
+
         // Bar Chart: Sales for the last 7 days
         public string[] BarChartLabels { get; set; } = Array.Empty<string>();
         public decimal[] BarChartData { get; set; } = Array.Empty<decimal>();
@@ -23,7 +24,7 @@
         public int[] PieChartData { get; set; } = Array.Empty<int>();
     }
 
-    // Innovation: Dedicated VM for the alerts with specific status flags
+
     public class ProactiveAlertVM
     {
         public string ProductName { get; set; } = "";
@@ -34,7 +35,7 @@
         public string Urgency { get; set; } = ""; // "Critical" (Red), "Warning" (Yellow)
     }
 
-    // For the simple transaction preview list
+
     public class TransactionPreviewVM
     {
         public int TransactionId { get; set; }

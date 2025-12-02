@@ -8,39 +8,48 @@ using System.Security.Claims;
 
 namespace ManarangVergara.Controllers
 {
-    // locks this whole section so only logged-in users can enter
     [Authorize]
     public class TransactionsController : Controller
     {
         private readonly PharmacyDbContext _context;
 
-        // connects to your database so we can pull sales data
         public TransactionsController(PharmacyDbContext context)
         {
             _context = context;
         }
 
-        // MAIN FUNCTION: SHOWS THE LIST OF SALES HISTORY (THE TABLE VIEW)
-        // this runs when you click the "transactions" tab
+        // ============================================================
+        // 1. TRANSACTION HISTORY (INDEX)
+        // ============================================================
         public async Task<IActionResult> Index(string searchString, string sortOrder, DateTime? startDate, DateTime? endDate, int? pageNumber = 1)
         {
-            // default settings: if you didn't pick a date, just show today's sales
+            // --- 1. DATE FILTERING DEFAULTS ---
             if (!startDate.HasValue) startDate = DateTime.Today;
-            if (!endDate.HasValue) endDate = DateTime.Today.AddDays(1).AddTicks(-1); // sets time to 11:59 pm
+            if (!endDate.HasValue) endDate = DateTime.Today.AddDays(1).AddTicks(-1);
 
-            // saves these dates so they stay in the date picker box on the screen
             ViewData["StartDate"] = startDate?.ToString("yyyy-MM-dd");
             ViewData["EndDate"] = endDate?.ToString("yyyy-MM-dd");
 
-            // database query: get transactions and grab the items and employee info with them
+            // --- 2. SEARCH & SORT MEMORY ---
+            ViewData["CurrentSort"] = sortOrder;
+            ViewData["CurrentFilter"] = searchString;
+
+            // --- 3. SORT TOGGLE LOGIC ---
+            // If the current sort is "Date", the next click should be "date_desc". 
+            // If it is anything else (or null), the next click should be "Date" (Ascending).
+            ViewData["DateSortParm"] = sortOrder == "Date" ? "date_desc" : "Date";
+            ViewData["CashierSortParm"] = sortOrder == "Cashier" ? "cashier_desc" : "Cashier";
+            ViewData["TotalSortParm"] = sortOrder == "Total" ? "total_desc" : "Total";
+            ViewData["StatusSortParm"] = sortOrder == "Status" ? "status_desc" : "Status";
+
+            // --- 4. BASE QUERY ---
             var query = _context.Transactions
                 .Include(t => t.SalesItems)
                 .Include(t => t.Employee)
-                .Where(t => t.SalesDate >= startDate && t.SalesDate <= endDate) // filter by the dates chosen above
+                .Where(t => t.SalesDate >= startDate && t.SalesDate <= endDate)
                 .AsQueryable();
 
-            // SECURITY: CHECK IF USER IS A CASHIER
-            // if it's a cashier, filter the list to ONLY show sales they made themselves
+            // --- 5. SECURITY: CASHIER LIMITATION ---
             if (User.IsInRole("Cashier"))
             {
                 var employeeIdClaim = User.FindFirst("EmployeeId");
@@ -50,8 +59,7 @@ namespace ManarangVergara.Controllers
                 }
             }
 
-            // SEARCH BAR LOGIC
-            // if you typed something, filter the list by cashier name, payment type (gcash), or reference number
+            // --- 6. SEARCH LOGIC ---
             if (!string.IsNullOrEmpty(searchString))
             {
                 query = query.Where(t => t.Employee.EmployeeName.Contains(searchString)
@@ -59,22 +67,25 @@ namespace ManarangVergara.Controllers
                                      || (t.ReferenceNo != null && t.ReferenceNo.Contains(searchString)));
             }
 
-            // SORTING LOGIC
-            // rearranges the list based on which column header you clicked
+            // --- 7. SORTING SWITCH ---
             query = sortOrder switch
             {
-                "date_desc" => query.OrderByDescending(t => t.SalesDate), // newest first
+                "Date" => query.OrderBy(t => t.SalesDate),           // Ascending (Oldest First)
+                "date_desc" => query.OrderByDescending(t => t.SalesDate), // Descending (Newest First)
+
                 "Cashier" => query.OrderBy(t => t.Employee.EmployeeName),
                 "cashier_desc" => query.OrderByDescending(t => t.Employee.EmployeeName),
-                "Status" => query.OrderBy(t => t.Status),
-                "status_desc" => query.OrderByDescending(t => t.Status),
+
                 "Total" => query.OrderBy(t => t.TotalAmount),
                 "total_desc" => query.OrderByDescending(t => t.TotalAmount),
-                _ => query.OrderByDescending(t => t.SalesDate), // default sorting
+
+                "Status" => query.OrderBy(t => t.Status),
+                "status_desc" => query.OrderByDescending(t => t.Status),
+
+                _ => query.OrderByDescending(t => t.SalesDate), // Default: Newest First
             };
 
-            // CONVERT TO VIEWMODEL
-            // this cleans up the data before sending it to the webpage (calculating total items, etc.)
+            // --- 8. MAP TO VIEW MODEL ---
             var data = await query
                 .Select(t => new TransactionListViewModel
                 {
@@ -83,24 +94,23 @@ namespace ManarangVergara.Controllers
                     TotalAmount = t.TotalAmount,
                     PaymentMethod = t.PaymentMethod,
                     Status = t.Status,
-                    ItemCount = t.SalesItems.Sum(si => si.QuantitySold), // counts how many items were in the cart
+                    ItemCount = t.SalesItems.Sum(si => si.QuantitySold),
                     CashierName = t.Employee.EmployeeName
                 })
                 .ToListAsync();
 
-            // PAGINATION LOGIC
-            // splits the list into pages of 10 items so the page doesn't lag
+            // --- 9. PAGINATION ---
             int pageSize = 10;
             return View(PaginatedList<TransactionListViewModel>.Create(data.AsQueryable(), pageNumber ?? 1, pageSize));
         }
 
-        // FUNCTION: OPENS THE DETAILS OF ONE SPECIFIC SALE
-        // this runs when you click "details" on a specific row
+        // ============================================================
+        // 2. DETAILS VIEW
+        // ============================================================
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null) return NotFound();
 
-            // find the transaction and load the specific products sold
             var transaction = await _context.Transactions
                 .Include(t => t.Employee)
                 .Include(t => t.SalesItems)
@@ -109,29 +119,27 @@ namespace ManarangVergara.Controllers
 
             if (transaction == null) return NotFound();
 
-            // PRIVACY CHECK
-            // if a cashier tries to view a sale that isn't theirs, block them
+            // Security Check for Cashiers
             if (User.IsInRole("Cashier"))
             {
                 var employeeIdClaim = User.FindFirst("EmployeeId");
                 if (employeeIdClaim != null && int.TryParse(employeeIdClaim.Value, out int empId))
                 {
-                    if (transaction.EmployeeId != empId) return Forbid(); // access denied
+                    if (transaction.EmployeeId != empId) return Forbid();
                 }
             }
 
             return View(transaction);
         }
 
-        // FUNCTION: VOID/CANCEL A TRANSACTION
-        // this runs when a manager/admin clicks "void" and gives a reason
+        // ============================================================
+        // 3. VOID LOGIC
+        // ============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin,Owner,Manager")] // only bosses can do this
+        [Authorize(Roles = "Admin,Owner,Manager")]
         public async Task<IActionResult> Void(int id, string reason)
         {
-            // start a "database transaction" - this acts like a safety net. 
-            // if anything fails halfway, it undoes everything.
             using var dbTransaction = await _context.Database.BeginTransactionAsync();
             try
             {
@@ -141,24 +149,20 @@ namespace ManarangVergara.Controllers
 
                 if (sale == null) return NotFound();
 
-                // you can't void something that was already refunded or pending
                 if (sale.Status != "Completed")
                 {
                     TempData["ErrorMessage"] = "Only completed transactions can be voided.";
                     return RedirectToAction(nameof(Details), new { id });
                 }
 
-                // STEP 1: RESTOCK INVENTORY
-                // loop through every item bought in this sale
+                // Restock Inventory
                 foreach (var item in sale.SalesItems)
                 {
-                    // find the batch of medicine this item came from
                     var targetBatch = await _context.Inventories
                         .Where(i => i.ProductId == item.ProductId)
                         .OrderByDescending(i => i.ExpiryDate)
                         .FirstOrDefaultAsync();
 
-                    // put the items back on the shelf (add quantity back to database)
                     if (targetBatch != null)
                     {
                         targetBatch.Quantity += item.QuantitySold;
@@ -166,24 +170,21 @@ namespace ManarangVergara.Controllers
                     }
                 }
 
-                // STEP 2: UPDATE STATUS
-                // mark the sale as refunded so it doesn't count in daily profit
+                // Update Status
                 sale.Status = "Refunded";
                 _context.Update(sale);
 
-                // STEP 3: CREATE AN AUDIT LOG
-                // record who voided this and why, for security purposes
+                // Create Log
                 var managerId = int.Parse(User.FindFirst("EmployeeId").Value);
                 var voidLog = new ManarangVergara.Models.Database.Void
                 {
                     SalesId = id,
-                    EmployeeId = managerId, // the manager who clicked void
+                    EmployeeId = managerId,
                     VoidedAt = DateTime.Now,
                     VoidReason = reason
                 };
                 _context.Voids.Add(voidLog);
 
-                // save all changes permanently. if we reached here, everything worked.
                 await _context.SaveChangesAsync();
                 await dbTransaction.CommitAsync();
 
@@ -192,26 +193,24 @@ namespace ManarangVergara.Controllers
             }
             catch (Exception ex)
             {
-                // if something crashed, undo all changes (don't return stock, don't change status)
                 await dbTransaction.RollbackAsync();
                 TempData["ErrorMessage"] = "Void Failed: " + ex.Message;
                 return RedirectToAction(nameof(Details), new { id });
             }
         }
 
-        // FUNCTION: SHOWS THE HISTORY OF VOIDED SALES
-        // separate page to see a list of everything that was cancelled
+        // ============================================================
+        // 4. VOID HISTORY
+        // ============================================================
         [Authorize(Roles = "Admin,Owner,Manager")]
         public async Task<IActionResult> VoidHistory(int? pageNumber = 1)
         {
-            // get list of voids, including who sold it originally and who cancelled it
             var query = _context.Voids
                 .Include(v => v.Sales)
-                .Include(v => v.Sales.Employee) // original cashier
-                .Include(v => v.Employee)       // manager who voided
+                .Include(v => v.Sales.Employee)
+                .Include(v => v.Employee)
                 .OrderByDescending(v => v.VoidedAt);
 
-            // make a clean list for the view
             var list = await query.Select(v => new VoidHistoryViewModel
             {
                 TransactionId = v.SalesId,
@@ -222,7 +221,6 @@ namespace ManarangVergara.Controllers
                 Reason = v.VoidReason
             }).ToListAsync();
 
-            // pagination again - 10 items per page
             int pageSize = 10;
             return View(PaginatedList<VoidHistoryViewModel>.Create(list.AsQueryable(), pageNumber ?? 1, pageSize));
         }

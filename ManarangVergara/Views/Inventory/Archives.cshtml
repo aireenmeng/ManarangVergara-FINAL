@@ -52,7 +52,6 @@
 
                             @if (item.CanDeletePermanently)
                             {
-                                // --- ADD THIS CHECK HERE ---
                                 @if (User.IsInRole("Admin") || User.IsInRole("Owner"))
                                 {
                                     <form asp-action="DeletePermanent" asp-route-id="@item.ProductId" method="post" style="display:inline;"
@@ -64,7 +63,6 @@
                                 }
                                 else
                                 {
-                                    // Optional: Show a "Locked" icon for Managers so they know why they can't click it
                                     <button type="button" class="btn btn-sm btn-secondary disabled" title="Requires Admin Access">
                                         <i class="fa-solid fa-lock"></i>
                                     </button>
@@ -72,7 +70,6 @@
                             }
                             else
                             {
-                                // EXISTING CODE FOR "CANNOT DELETE DUE TO SALES"
                                 <button type="button" class="btn btn-sm btn-secondary disabled" title="Cannot Delete: Has Sales History">
                                     <i class="fa-solid fa-ban"></i>
                                 </button>

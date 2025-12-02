@@ -26,13 +26,11 @@ namespace ManarangVergara.Models
         // --- TAB 4: AUDIT LOG ---
         public List<VoidHistoryViewModel> VoidLogs { get; set; } = new();
 
-        // --- METADATA ---
         public string GeneratedBy { get; set; } = "";
         public DateTime GeneratedAt { get; set; }
         public bool ShowFinancials { get; set; }
     }
 
-    // --- NEW: Helper Class for Tabular Data ---
     public class DetailedSalesData
     {
         public DateTime Date { get; set; }
@@ -51,7 +49,6 @@ namespace ManarangVergara.Models
         public int QtySold { get; set; }
         public decimal Revenue { get; set; }
         public decimal Cost { get; set; }
-        // Calculated properties
         public decimal Profit => Revenue - Cost;
         public decimal MarginPercent => Revenue > 0 ? (Profit / Revenue) * 100 : 0;
     }
@@ -64,8 +61,6 @@ namespace ManarangVergara.Models
         public int Quantity { get; set; }
         public string Status { get; set; } = ""; // Active, Low, Expired
         public int DaysUntilExpiry { get; set; }
-
-        // VISUAL HELPER: Calculates a % for the visual bar (Max 100 for graph scaling)
         public int StockLevelPercent => Quantity > 100 ? 100 : Quantity;
     }
 }

@@ -7,8 +7,7 @@
         public decimal Price { get; set; }
         public int Quantity { get; set; }
 
-        // NEW: Discount properties
-        public decimal DiscountRate { get; set; } = 0; // e.g., 0.20 for 20% off
+        public decimal DiscountRate { get; set; } = 0; 
         public decimal DiscountAmount => (Price * Quantity) * DiscountRate;
         public decimal Total => (Price * Quantity) - DiscountAmount;
     }
