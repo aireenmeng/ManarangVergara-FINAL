@@ -69,24 +69,44 @@
             <thead class="table-light">
                 <tr>
                     <th>
-                        <a asp-action="Index" asp-route-sortOrder="@ViewData["DateSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                        <a asp-action="Index"
+                           asp-route-sortOrder="@ViewData["DateSortParm"]"
+                           asp-route-searchString="@ViewData["CurrentFilter"]"
+                           asp-route-startDate="@ViewData["StartDate"]"
+                           asp-route-endDate="@ViewData["EndDate"]"
+                           class="text-dark text-decoration-none">
                             Date & Time <i class="fa-solid fa-sort ms-1 text-muted"></i>
                         </a>
                     </th>
                     <th>
-                        <a asp-action="Index" asp-route-sortOrder="@ViewData["CashierSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                        <a asp-action="Index"
+                           asp-route-sortOrder="@ViewData["CashierSortParm"]"
+                           asp-route-searchString="@ViewData["CurrentFilter"]"
+                           asp-route-startDate="@ViewData["StartDate"]"
+                           asp-route-endDate="@ViewData["EndDate"]"
+                           class="text-dark text-decoration-none">
                             Cashier <i class="fa-solid fa-sort ms-1 text-muted"></i>
                         </a>
                     </th>
                     <th>Items</th>
                     <th>
-                        <a asp-action="Index" asp-route-sortOrder="@ViewData["TotalSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                        <a asp-action="Index"
+                           asp-route-sortOrder="@ViewData["TotalSortParm"]"
+                           asp-route-searchString="@ViewData["CurrentFilter"]"
+                           asp-route-startDate="@ViewData["StartDate"]"
+                           asp-route-endDate="@ViewData["EndDate"]"
+                           class="text-dark text-decoration-none">
                             Total <i class="fa-solid fa-sort ms-1 text-muted"></i>
                         </a>
                     </th>
                     <th>Payment</th>
                     <th>
-                        <a asp-action="Index" asp-route-sortOrder="@ViewData["StatusSortParm"]" asp-route-searchString="@ViewData["CurrentFilter"]" class="text-dark text-decoration-none">
+                        <a asp-action="Index"
+                           asp-route-sortOrder="@ViewData["StatusSortParm"]"
+                           asp-route-searchString="@ViewData["CurrentFilter"]"
+                           asp-route-startDate="@ViewData["StartDate"]"
+                           asp-route-endDate="@ViewData["EndDate"]"
+                           class="text-dark text-decoration-none">
                             Status <i class="fa-solid fa-sort ms-1 text-muted"></i>
                         </a>
                     </th>
@@ -159,6 +179,8 @@
            asp-route-sortOrder="@ViewData["CurrentSort"]"
            asp-route-pageNumber="@(Model.PageIndex - 1)"
            asp-route-searchString="@ViewData["CurrentFilter"]"
+           asp-route-startDate="@ViewData["StartDate"]"
+           asp-route-endDate="@ViewData["EndDate"]"
            class="btn btn-outline-primary @prevDisabled">
             <i class="fa-solid fa-chevron-left me-1"></i> Previous
         </a>
@@ -166,6 +188,8 @@
            asp-route-sortOrder="@ViewData["CurrentSort"]"
            asp-route-pageNumber="@(Model.PageIndex + 1)"
            asp-route-searchString="@ViewData["CurrentFilter"]"
+           asp-route-startDate="@ViewData["StartDate"]"
+           asp-route-endDate="@ViewData["EndDate"]"
            class="btn btn-outline-primary @nextDisabled">
             Next <i class="fa-solid fa-chevron-right ms-1"></i>
         </a>

@@ -52,17 +52,27 @@
 
                             @if (item.CanDeletePermanently)
                             {
-                                // if no sales history, show the delete button
-                                <form asp-action="DeletePermanent" asp-route-id="@item.ProductId" method="post" style="display:inline;"
-                                      onsubmit="return confirm('WARNING: This will permanently delete @item.ProductName from the database.\n\nThis cannot be undone. Are you sure?');">
-                                    <button type="submit" class="btn btn-sm btn-danger" title="Delete Permanently (Mistake Entry)">
-                                        <i class="fa-solid fa-xmark"></i>
+                                // --- ADD THIS CHECK HERE ---
+                                @if (User.IsInRole("Admin") || User.IsInRole("Owner"))
+                                {
+                                    <form asp-action="DeletePermanent" asp-route-id="@item.ProductId" method="post" style="display:inline;"
+                                          onsubmit="return confirm('WARNING: This will permanently delete @item.ProductName...');">
+                                        <button type="submit" class="btn btn-sm btn-danger" title="Delete Permanently">
+                                            <i class="fa-solid fa-xmark"></i>
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    // Optional: Show a "Locked" icon for Managers so they know why they can't click it
+                                    <button type="button" class="btn btn-sm btn-secondary disabled" title="Requires Admin Access">
+                                        <i class="fa-solid fa-lock"></i>
                                     </button>
-                                </form>
+                                }
                             }
                             else
                             {
-                                // if sales exist, show a disabled icon explaining why
+                                // EXISTING CODE FOR "CANNOT DELETE DUE TO SALES"
                                 <button type="button" class="btn btn-sm btn-secondary disabled" title="Cannot Delete: Has Sales History">
                                     <i class="fa-solid fa-ban"></i>
                                 </button>
