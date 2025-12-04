@@ -5,7 +5,7 @@ namespace ManarangVergara.Models
 {
     public class ProductFormViewModel
     {
-        // --- PRODUCT Details ---
+        // --- PRODUCT DETAILS ---
         public int ProductId { get; set; }
 
         [Required(ErrorMessage = "Product Name is required.")]
@@ -20,13 +20,14 @@ namespace ManarangVergara.Models
         [Required(ErrorMessage = "Please select a category.")]
         public int CategoryId { get; set; }
 
+        // --- SUPPLIER LOGIC ---
         [Display(Name = "Supplier")]
-        [Required(ErrorMessage = "Please select a supplier.")]
-        public int SupplierId { get; set; }
+        public int? SupplierId { get; set; } // Nullable now, because user might pick "New"
 
-        // --- INVENTORY Initial Batch Details ---
-        // We only need these when ADDING a new product for the first time.
+        [Display(Name = "New Supplier Name")]
+        public string? NewSupplierName { get; set; } // Only used if adding new
 
+        // --- INITIAL BATCH DETAILS ---
         [Required]
         [Range(0, 999999)]
         [Display(Name = "Initial Stock")]
@@ -45,14 +46,13 @@ namespace ManarangVergara.Models
         [Required]
         [DataType(DataType.Date)]
         [Display(Name = "Expiry Date")]
-        public DateTime ExpiryDate { get; set; } = DateTime.Today.AddYears(1); // Default to 1 year from now
+        public DateTime ExpiryDate { get; set; }
 
         [Required]
         [Display(Name = "Batch Number")]
         public string BatchNumber { get; set; } = "";
 
-        // --- DROPDOWN LISTS ---
-        // These hold the data for the <select> HTML elements
+        // --- DROPDOWNS ---
         public IEnumerable<SelectListItem>? CategoryList { get; set; }
         public IEnumerable<SelectListItem>? SupplierList { get; set; }
     }

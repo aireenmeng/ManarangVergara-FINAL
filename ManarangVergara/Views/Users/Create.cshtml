@@ -33,7 +33,10 @@
                             <select asp-for="Position" class="form-select" required>
                                 <option value="">- Select Role -</option>
                                 <option value="Cashier">Cashier</option>
-                                <option value="Manager">Manager</option>
+                                @if (User.IsInRole("Owner"))
+                                {
+                                    <option value="Manager">Manager</option>
+                                }
                             </select>
                         </div>
                     </div>

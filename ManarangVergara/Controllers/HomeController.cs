@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ManarangVergara.Models;
 using ManarangVergara.Models.Database;
-using System.Globalization; // Needed for month names
+using System.Globalization;
 
 namespace ManarangVergara.Controllers
 {
@@ -18,25 +18,29 @@ namespace ManarangVergara.Controllers
             _context = context;
         }
 
-        // UPDATED: Now handles 'thisyear' with monthly grouping
         public async Task<IActionResult> Index(string period = "7days")
         {
-            var today = DateTime.Today;
+            var today = DateTime.Today; // 12:00:00 AM Today
+            var tomorrow = today.AddDays(1); // 12:00:00 AM Tomorrow
+
             var todayDateOnly = DateOnly.FromDateTime(today);
             var thirtyDaysFromNow = todayDateOnly.AddDays(30);
             int lowStockThreshold = 20;
 
-            // 1. KPI CARDS (Unchanged)
+            // 1. KPI CARDS (FIXED: Now capped at Tomorrow's start time)
+            // Old logic: t.SalesDate >= today (Included infinite future)
+            // New logic: t.SalesDate >= today && t.SalesDate < tomorrow
             var dailySales = await _context.Transactions
-                .Where(t => t.SalesDate >= today && t.Status == "Completed")
+                .Where(t => t.SalesDate >= today && t.SalesDate < tomorrow && t.Status == "Completed")
                 .ToListAsync();
+
             decimal dailyGrossProfit = dailySales.Sum(t => t.TotalAmount);
 
             var totalStockValue = await _context.Inventories.SumAsync(i => i.CostPrice * i.Quantity);
             var lowStockCount = await _context.Inventories.CountAsync(i => i.Quantity <= lowStockThreshold);
             var nearExpiryCount = await _context.Inventories.CountAsync(i => i.ExpiryDate <= thirtyDaysFromNow && i.ExpiryDate >= todayDateOnly);
 
-            // 2. ALERTS & RECENT TXNS (Unchanged)
+            // 2. ALERTS & RECENT TXNS
             var rawAlerts = await _context.Inventories
                 .Include(i => i.Product)
                 .Where(i => i.Quantity <= lowStockThreshold || (i.ExpiryDate <= thirtyDaysFromNow && i.ExpiryDate >= todayDateOnly))
@@ -64,41 +68,32 @@ namespace ManarangVergara.Controllers
                     CashierName = "N/A"
                 }).ToListAsync();
 
-            // ---------------------------------------------------------
-            // 3. INTELLIGENT CHART DATA
-            // ---------------------------------------------------------
-
+            // 3. CHART DATA (Unchanged)
             string[] barLabels;
             decimal[] barData;
-
-            // Determine Date Range
             DateTime chartStartDate;
 
             if (period == "thisyear")
             {
-                // --- MONTHLY VIEW (Jan - Dec) ---
                 int currentYear = today.Year;
-                chartStartDate = new DateTime(currentYear, 1, 1); // Jan 1st
+                chartStartDate = new DateTime(currentYear, 1, 1);
 
-                // Group by Month
                 var salesByMonth = await _context.Transactions
                     .Where(t => t.SalesDate >= chartStartDate && t.Status == "Completed")
                     .GroupBy(t => t.SalesDate.Month)
                     .Select(g => new { Month = g.Key, Total = g.Sum(t => t.TotalAmount) })
                     .ToListAsync();
 
-                barLabels = DateTimeFormatInfo.CurrentInfo.AbbreviatedMonthNames.Take(12).ToArray(); // ["Jan", "Feb"...]
+                barLabels = DateTimeFormatInfo.CurrentInfo.AbbreviatedMonthNames.Take(12).ToArray();
                 barData = new decimal[12];
 
                 for (int i = 0; i < 12; i++)
                 {
-                    // i+1 because months are 1-12
                     barData[i] = salesByMonth.FirstOrDefault(s => s.Month == i + 1)?.Total ?? 0;
                 }
             }
             else
             {
-                // --- DAILY VIEW (7 or 30 Days) ---
                 int daysToLoad = (period == "30days") ? 30 : 7;
                 chartStartDate = (period == "30days") ? today.AddDays(-29) : today.AddDays(-6);
 
@@ -119,7 +114,7 @@ namespace ManarangVergara.Controllers
                 }
             }
 
-            // Pie Chart (Top Categories) also respects the date filter
+            // Pie Chart
             var categoryStats = await _context.SalesItems
                 .Include(si => si.Product).ThenInclude(p => p.Category)
                 .Include(si => si.Sales)
@@ -129,9 +124,6 @@ namespace ManarangVergara.Controllers
                 .OrderByDescending(x => x.Count)
                 .Take(5)
                 .ToListAsync();
-
-            var pieLabels = categoryStats.Select(x => x.Category).ToArray();
-            var pieData = categoryStats.Select(x => x.Count).ToArray();
 
             var viewModel = new DashboardViewModel
             {
@@ -143,8 +135,8 @@ namespace ManarangVergara.Controllers
                 RecentTransactions = recentTxns,
                 BarChartLabels = barLabels,
                 BarChartData = barData,
-                PieChartLabels = pieLabels,
-                PieChartData = pieData
+                PieChartLabels = categoryStats.Select(x => x.Category).ToArray(),
+                PieChartData = categoryStats.Select(x => x.Count).ToArray()
             };
 
             ViewData["CurrentPeriod"] = period;

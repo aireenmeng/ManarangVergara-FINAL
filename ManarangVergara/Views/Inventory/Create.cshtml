@@ -33,12 +33,19 @@
                                     </div>
                                     <div class="col-md-6">
                                         <label asp-for="SupplierId" class="form-label fw-bold">Supplier *</label>
-                                        <select asp-for="SupplierId" asp-items="Model.SupplierList" class="form-select">
+                                        <select asp-for="SupplierId" asp-items="Model.SupplierList" class="form-select" id="supplierSelect" onchange="toggleSupplierInput()">
                                             <option value="">- Select -</option>
                                         </select>
                                         <span asp-validation-for="SupplierId" class="text-danger small"></span>
                                     </div>
                                 </div>
+
+                                <div class="mb-3" id="newSupplierDiv" style="display:none;">
+                                    <label asp-for="NewSupplierName" class="form-label fw-bold text-success">Enter New Supplier Name</label>
+                                    <input asp-for="NewSupplierName" class="form-control border-success" placeholder="e.g. New Pharma Inc." id="newSupplierInput" />
+                                    <span asp-validation-for="NewSupplierName" class="text-danger small"></span>
+                                </div>
+
                                 <div class="mb-3">
                                     <label asp-for="Manufacturer" class="form-label fw-bold">Manufacturer *</label>
                                     <input asp-for="Manufacturer" class="form-control" placeholder="e.g., Unilab" />
@@ -61,12 +68,12 @@
                                 <div class="row g-2 mb-3">
                                     <div class="col-md-6">
                                         <label asp-for="BatchNumber" class="form-label fw-bold">Batch No. *</label>
-                                        <input asp-for="BatchNumber" class="form-control" />
-                                        <span asp-validation-for="BatchNumber" class="text-danger small"></span>
+                                        <input asp-for="BatchNumber" class="form-control font-monospace" readonly />
+                                        <small class="text-muted">Auto-generated</small>
                                     </div>
                                     <div class="col-md-6">
                                         <label asp-for="ExpiryDate" class="form-label fw-bold">Expiry Date *</label>
-                                        <input asp-for="ExpiryDate" class="form-control" type="date" />
+                                        <input asp-for="ExpiryDate" class="form-control" type="date" id="expiryInput" />
                                         <span asp-validation-for="ExpiryDate" class="text-danger small"></span>
                                     </div>
                                 </div>
@@ -108,3 +115,36 @@
         </div>
     </div>
 </div>
+
+<script>
+    // 1. Toggle "New Supplier" Input
+    function toggleSupplierInput() {
+        var select = document.getElementById("supplierSelect");
+        var div = document.getElementById("newSupplierDiv");
+        var input = document.getElementById("newSupplierInput");
+
+        if (select.value === "-1") {
+            div.style.display = "block";
+            input.setAttribute("required", "required");
+            input.focus();
+        } else {
+            div.style.display = "none";
+            input.removeAttribute("required");
+            input.value = "";
+        }
+    }
+
+    // 2. Set Min Expiry Date to Tomorrow
+    document.addEventListener("DOMContentLoaded", function() {
+        var today = new Date();
+        var tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        var dd = String(tomorrow.getDate()).padStart(2, '0');
+        var mm = String(tomorrow.getMonth() + 1).padStart(2, '0'); //January is 0!
+        var yyyy = tomorrow.getFullYear();
+
+        var minDate = yyyy + '-' + mm + '-' + dd;
+        document.getElementById("expiryInput").setAttribute("min", minDate);
+    });
+</script>

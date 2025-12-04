@@ -5,17 +5,15 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using ManarangVergara.Models;
 using ManarangVergara.Models.Database;
-using ManarangVergara.Services; 
+using ManarangVergara.Services;
 
 namespace ManarangVergara.Controllers
 {
-    // manages user accounts, logging in, and resetting passwords
     public class AccountController : Controller
     {
         private readonly PharmacyDbContext _context;
-        private readonly IEmailService _emailService; // added email service
+        private readonly IEmailService _emailService;
 
-        // loads the tools we need: the database connection and the email sender
         public AccountController(PharmacyDbContext context, IEmailService emailService)
         {
             _context = context;
@@ -26,8 +24,6 @@ namespace ManarangVergara.Controllers
         // 1. LOGIN PAGE
         // ============================================================
 
-        // get: /account/login
-        // shows the login screen. if you are already logged in, it kicks you to the homepage instead.
         public IActionResult Login()
         {
             if (User.Identity!.IsAuthenticated)
@@ -37,15 +33,11 @@ namespace ManarangVergara.Controllers
             return View();
         }
 
-        // post: /account/login
-        // MAIN FUNCTION: PROCESS THE LOGIN ATTEMPT
-        // this checks if the username and password match what is in the database
         [HttpPost]
         public async Task<IActionResult> Login(LoginViewModel model)
         {
             if (!ModelState.IsValid) return View(model);
 
-            // find the user in the database. also makes sure they aren't "fired" (inactive).
             var employee = await _context.Employees
                 .FirstOrDefaultAsync(e => e.Username == model.Username && e.IsActive == true);
 
@@ -57,13 +49,9 @@ namespace ManarangVergara.Controllers
 
             bool isPasswordCorrect = false;
 
-            // 1. try secure hash
-            // attempts to match the password using modern encryption (bcrypt)
             try { isPasswordCorrect = BCrypt.Net.BCrypt.Verify(model.Password, employee.Password); }
             catch { }
 
-            // 2. fallback: plain text (auto-updates to hash)
-            // if the old password was not encrypted yet, this checks it, then automatically encrypts it for next time
             if (!isPasswordCorrect && employee.Password == model.Password)
             {
                 isPasswordCorrect = true;
@@ -77,64 +65,56 @@ namespace ManarangVergara.Controllers
                 return View(model);
             }
 
-            // create the user's "digital id card" (claims)
-            // this data stays with the user while they browse the site so we know who they are
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.Name, employee.Username),
                 new Claim("FullName", employee.EmployeeName),
-                new Claim(ClaimTypes.Role, employee.Position), // saves if they are admin, cashier, etc.
+                new Claim(ClaimTypes.Role, employee.Position),
                 new Claim("EmployeeId", employee.EmployeeId.ToString())
             };
 
-            // actually logs them into the browser using cookies
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity));
 
-            return RedirectToAction("Index", "Home");
+            // --- REDIRECT LOGIC BASED ON ROLE ---
+            if (employee.Position == "Cashier")
+            {
+                return RedirectToAction("Index", "Pos"); // Cashiers go straight to selling
+            }
+
+            return RedirectToAction("Index", "Home"); // Owners/Managers go to Dashboard
         }
 
         // ============================================================
         // 2. FORGOT PASSWORD (PUBLIC)
         // ============================================================
 
-        // get: /account/forgotpassword
-        // shows the simple form asking for an email address
         public IActionResult ForgotPassword()
         {
             return View();
         }
 
-        // post: /account/forgotpassword
-        // MAIN FUNCTION: GENERATE RESET LINK AND SEND EMAIL
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ForgotPassword(string contactInfo)
         {
             var user = await _context.Employees.FirstOrDefaultAsync(e => e.ContactInfo == contactInfo && e.IsActive == true);
 
-            // security feature:
-            // even if we didn't find the email, we pretend we did. 
-            // this stops hackers from guessing emails to see who has an account here.
             if (user == null)
             {
                 return View("ForgotPasswordConfirmation");
             }
 
-            // generate a random secret code (token)
             string token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(64));
             user.ResetToken = token;
-            user.ResetTokenExpiry = DateTime.UtcNow.AddHours(24); // the link dies in 24 hours
+            user.ResetTokenExpiry = DateTime.UtcNow.AddHours(24);
 
-            // save the token to the database so we can check it later
             await _context.SaveChangesAsync();
 
-            // creates the clickable link
             var resetLink = Url.Action("ResetPassword", "Account", new { token = token }, Request.Scheme);
 
             try
             {
-                // formatting the email message with html
                 string emailBody = $@"
                     <h3>Password Reset Request</h3>
                     <p>A password reset was requested for your MedTory account.</p>
@@ -142,12 +122,11 @@ namespace ManarangVergara.Controllers
                     <a href='{resetLink}' style='background-color:#f6c23e;color:black;padding:10px 20px;text-decoration:none;border-radius:5px;'>Reset Password</a>
                     <p><small>If you did not request this, please ignore this email.</small></p>";
 
-                // uses the email service to actually send it out
                 await _emailService.SendEmailAsync(user.ContactInfo, "MedTory - Password Reset", emailBody);
             }
             catch
             {
-                // if sending fails, we just ignore it for now so the app doesn't crash
+                // Log error silently
             }
 
             return View("ForgotPasswordConfirmation");
@@ -157,7 +136,6 @@ namespace ManarangVergara.Controllers
         // 3. LOGOUT
         // ============================================================
 
-        // deletes the login cookie and sends user back to login page
         public async Task<IActionResult> Logout()
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
@@ -168,11 +146,8 @@ namespace ManarangVergara.Controllers
         // 4. RESET PASSWORD (FROM EMAIL LINK)
         // ============================================================
 
-        // get: verifies the token from the email link.
-        // this runs when the user clicks the link in their email
         public IActionResult ResetPassword(string token)
         {
-            // check if the token exists and hasn't expired yet
             var user = _context.Employees.FirstOrDefault(e => e.ResetToken == token && e.ResetTokenExpiry > DateTime.UtcNow);
 
             if (user == null)
@@ -180,32 +155,27 @@ namespace ManarangVergara.Controllers
                 return Content("Error: This password reset link is invalid or has expired.");
             }
 
-            // pass the token to the page so we can send it back with the new password
             ViewBag.Token = token;
             ViewBag.Email = user.ContactInfo;
             return View();
         }
 
-        // POST: /Account/ResetPassword
         [HttpPost]
         public async Task<IActionResult> ResetPassword(string token, string newPassword, string confirmPassword)
         {
-            // 1. SECURITY CHECK: Do passwords match?
             if (newPassword != confirmPassword)
             {
-                // Re-fetch user to populate the UI (Email address display)
                 var pendingUser = await _context.Employees
                     .AsNoTracking()
                     .FirstOrDefaultAsync(e => e.ResetToken == token);
 
                 ViewBag.Token = token;
-                ViewBag.Email = pendingUser?.ContactInfo ?? "Unknown"; // Prevent crash if user not found
+                ViewBag.Email = pendingUser?.ContactInfo ?? "Unknown";
 
                 ModelState.AddModelError("", "Passwords do not match. Please try again.");
                 return View();
             }
 
-            // 2. TOKEN CHECK: Is the link valid?
             var user = await _context.Employees
                 .FirstOrDefaultAsync(e => e.ResetToken == token && e.ResetTokenExpiry > DateTime.UtcNow);
 
@@ -214,13 +184,10 @@ namespace ManarangVergara.Controllers
                 return RedirectToAction("Login");
             }
 
-            // 3. SAVE NEW PASSWORD
             user.Password = BCrypt.Net.BCrypt.HashPassword(newPassword);
-
-            // Clear the token so it cannot be used again
             user.ResetToken = null;
             user.ResetTokenExpiry = null;
-            user.IsActive = true; // Activate user if this was their first login
+            user.IsActive = true;
 
             _context.Update(user);
             await _context.SaveChangesAsync();
