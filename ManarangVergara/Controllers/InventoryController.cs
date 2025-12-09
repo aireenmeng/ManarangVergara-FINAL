@@ -22,35 +22,65 @@ namespace ManarangVergara.Controllers
         // (Omitting Index/Archives to save space, paste previous versions here if needed)
         // Only showing the CHANGED methods below:
 
-        // ============================================================
-        // 1. CREATE (GET) - Generates Sequential Batch
-        // ============================================================
+        // GET: Inventory/Create
+        // [InventoryController.cs]
+
         [Authorize(Roles = "Owner,Manager")]
         public async Task<IActionResult> Create()
         {
-            // SEQUENTIAL BATCH LOGIC
-            // Format: B-yyyyMMdd-001
+            // -----------------------------------------------------------------
+            // LOGIC: GENERATE SEQUENTIAL BATCH (B-yyyyMMdd-XXX)
+            // -----------------------------------------------------------------
+
+            // 1. Get today's date prefix
             string datePart = DateTime.Now.ToString("yyyyMMdd");
             string prefix = $"B-{datePart}-";
 
-            // Count how many batches exist today to find the next number
-            int todayCount = await _context.Inventories
+            // 2. Find the HIGHEST existing batch for today
+            // We sort by InventoryId descending to get the absolute latest entry.
+            var lastBatchItem = await _context.Inventories
                 .Where(i => i.BatchNumber.StartsWith(prefix))
-                .CountAsync();
+                .OrderByDescending(i => i.InventoryId)
+                .FirstOrDefaultAsync();
 
-            string nextSeq = (todayCount + 1).ToString("D3"); // Pads with zeros (e.g., 001, 002)
-            string generatedBatch = $"{prefix}{nextSeq}";
+            string nextSequence = "001"; // Default start for a new day
 
+            if (lastBatchItem != null)
+            {
+                // 3. Extract the last 3 digits (e.g., "012" from "B-20251202-012")
+                string currentSeqStr = lastBatchItem.BatchNumber.Substring(lastBatchItem.BatchNumber.Length - 3);
+
+                // 4. Do the math: 12 + 1 = 13
+                if (int.TryParse(currentSeqStr, out int currentSeqInt))
+                {
+                    nextSequence = (currentSeqInt + 1).ToString("D3"); // Format as "013"
+                }
+            }
+
+            string generatedBatch = $"{prefix}{nextSequence}";
+
+            // -----------------------------------------------------------------
+            // PREPARE THE VIEW
+            // -----------------------------------------------------------------
             var viewModel = new ProductFormViewModel
             {
-                CategoryList = await _context.ProductCategories.Where(c => c.IsActive).Select(c => new SelectListItem { Value = c.CategoryId.ToString(), Text = c.CategoryName }).ToListAsync(),
+                CategoryList = await _context.ProductCategories
+                    .Where(c => c.IsActive)
+                    .OrderBy(c => c.CategoryName)
+                    .Select(c => new SelectListItem
+                    {
+                        Value = c.CategoryId.ToString(),
+                        Text = c.CategoryName
+                    })
+                    .ToListAsync(),
 
-                // Add "Other" Option to Supplier List
+                // Uses your helper method for the dropdown
                 SupplierList = await GetSupplierListAsync(),
 
-                BatchNumber = generatedBatch,
-                ExpiryDate = DateTime.Today.AddDays(1) // Default to tomorrow (valid)
+                BatchNumber = generatedBatch, // <--- The Sequential Number
+                ExpiryDate = DateTime.Today.AddDays(1)
             };
+
             return View(viewModel);
         }
 
